@@ -1,6 +1,5 @@
 {
   "name": "Thermorossi WiNET",
-  "filename": "thermorossi.zip",
   "category": "integration",
   "homeassistant": "2024.1.0"
 }
