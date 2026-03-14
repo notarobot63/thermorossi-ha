@@ -3,7 +3,8 @@
 > **🤖 Vibe Coded with Claude**
 > This project was built through an AI-assisted development session with [Claude](https://claude.ai) (Anthropic).
 > It is shared as-is, without warranty of any kind. Test thoroughly before relying on it for anything critical.
-> Remeber: if you don't like projects coded with AI help don't use them ;-)
+>
+> Remember: if you don't like projects coded with AI help don't use them ;-)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 ![HA min version](https://img.shields.io/badge/HA-2024.1%2B-blue)
