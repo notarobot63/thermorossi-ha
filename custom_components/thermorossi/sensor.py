@@ -53,7 +53,7 @@ class ThermorossiBaseSensor(CoordinatorEntity[ThermorossiCoordinator], SensorEnt
         self._entry = entry
         self._attr_device_info = {
             "identifiers": {("thermorossi", entry.data["host"])},
-            "name": f"Thermorossi ({entry.data['host']})",
+            "name": "Thermorossi",
             "manufacturer": "Thermorossi",
             "model": "WiNET",
         }

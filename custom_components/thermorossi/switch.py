@@ -30,7 +30,7 @@ class ThermorossiSwitch(CoordinatorEntity[ThermorossiCoordinator], SwitchEntity)
         self._attr_unique_id = f"{entry.entry_id}_switch"
         self._attr_device_info = {
             "identifiers": {("thermorossi", entry.data["host"])},
-            "name": f"Thermorossi ({entry.data['host']})",
+            "name": "Thermorossi",
             "manufacturer": "Thermorossi",
             "model": "WiNET",
         }
