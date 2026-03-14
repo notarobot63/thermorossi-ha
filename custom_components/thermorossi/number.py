@@ -39,13 +39,6 @@ class ThermorossiBaseNumber(CoordinatorEntity[ThermorossiCoordinator], NumberEnt
             "model": "WiNET",
         }
 
-    @property
-    def available(self) -> bool:
-        if not super().available or self.coordinator.data is None:
-            return False
-        status = self.coordinator.data.get(REG_STATUS, 1) & 0xFF
-        return status in ACTIVE_STATES
-
 
 class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
     _attr_name = "Niveau de puissance"
@@ -63,7 +56,7 @@ class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
         if self.coordinator.data is None:
             return None
         val = self.coordinator.data.get(REG_FIRE_LEVEL, 0)
-        return float(val) if val > 0 else None
+        return float(val) if val > 0 else 1.0
 
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator._send_command_reg(SET_REG_FIRE, int(value))
