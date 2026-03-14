@@ -6,6 +6,7 @@ from datetime import timedelta
 
 import aiohttp
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -14,6 +15,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     API_GET_REGISTERS,
     API_SET_REGISTER,
+    API_HEADERS,
     GET_PAYLOAD,
     CMD_ON,
     CMD_OFF,
@@ -22,11 +24,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-HEADERS = {
-    "Content-Type": "application/x-www-form-urlencoded",
-    "X-Requested-With": "XMLHttpRequest",
-}
 
 
 class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
@@ -52,15 +49,15 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
         """Fetch registers from the stove."""
         url = f"{self._base_url}{API_GET_REGISTERS}"
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url,
-                    data=GET_PAYLOAD,
-                    headers=HEADERS,
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    resp.raise_for_status()
-                    payload = await resp.json(content_type=None)
+            session = async_get_clientsession(self.hass)
+            async with session.post(
+                url,
+                data=GET_PAYLOAD,
+                headers=API_HEADERS,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                resp.raise_for_status()
+                payload = await resp.json(content_type=None)
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Erreur de connexion au poêle ({self.host}): {err}") from err
         except Exception as err:
@@ -97,16 +94,16 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
         url = f"{self._base_url}{API_SET_REGISTER}"
         payload = f"key={SET_KEY}&regId={reg_id}&value={value}&result=false"
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url,
-                    data=payload,
-                    headers=HEADERS,
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    resp.raise_for_status()
-                    result = await resp.json(content_type=None)
-                    return result.get("result", False) is True
+            session = async_get_clientsession(self.hass)
+            async with session.post(
+                url,
+                data=payload,
+                headers=API_HEADERS,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                resp.raise_for_status()
+                result = await resp.json(content_type=None)
+                return result.get("result", False) is True
         except Exception as err:
             _LOGGER.error("Erreur envoi commande au poêle: %s", err)
             return False

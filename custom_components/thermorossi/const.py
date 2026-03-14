@@ -62,6 +62,12 @@ ERROR_STATE = 8
 REG_ALARM_LSB = 8   # bits 0–15
 REG_ALARM_MSB = 9   # bits 16–31
 
+# HTTP headers for WiNET API requests
+API_HEADERS = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "X-Requested-With": "XMLHttpRequest",
+}
+
 # Alarm bit messages (from WiNET JS source)
 ALARM_MESSAGES = {
     0:  "Pas de pellets / Nettoyer brûleur",

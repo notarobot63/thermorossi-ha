@@ -10,7 +10,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     REG_STATUS,
@@ -27,6 +26,7 @@ from .const import (
     TEMP_OFFSET,
 )
 from .coordinator import ThermorossiCoordinator
+from .entity import ThermorossiEntity
 
 
 async def async_setup_entry(
@@ -45,18 +45,8 @@ async def async_setup_entry(
     ])
 
 
-class ThermorossiBaseSensor(CoordinatorEntity[ThermorossiCoordinator], SensorEntity):
-    _attr_has_entity_name = True
-
-    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_device_info = {
-            "identifiers": {("thermorossi", entry.data["host"])},
-            "name": "Thermorossi",
-            "manufacturer": "Thermorossi",
-            "model": "WiNET",
-        }
+class ThermorossiBaseSensor(ThermorossiEntity, SensorEntity):
+    pass
 
 
 class ThermorossiStatusSensor(ThermorossiBaseSensor):

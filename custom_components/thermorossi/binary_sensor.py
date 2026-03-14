@@ -8,9 +8,9 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    ALARM_MESSAGES,
     ERROR_STATE,
     REG_ALARM_LSB,
     REG_ALARM_MSB,
@@ -18,6 +18,7 @@ from .const import (
     REG_STATUS,
 )
 from .coordinator import ThermorossiCoordinator
+from .entity import ThermorossiEntity
 
 
 async def async_setup_entry(
@@ -39,19 +40,8 @@ def _alarm_code(data: dict) -> int:
     return (msb << 16) | lsb
 
 
-class ThermorossiBaseBinarySensor(
-    CoordinatorEntity[ThermorossiCoordinator], BinarySensorEntity
-):
-    _attr_has_entity_name = True
-
-    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
-        self._attr_device_info = {
-            "identifiers": {("thermorossi", entry.data["host"])},
-            "name": "Thermorossi",
-            "manufacturer": "Thermorossi",
-            "model": "WiNET",
-        }
+class ThermorossiBaseBinarySensor(ThermorossiEntity, BinarySensorEntity):
+    pass
 
 
 class ThermorossiErrorSensor(ThermorossiBaseBinarySensor):
@@ -90,7 +80,6 @@ class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
     def extra_state_attributes(self) -> dict:
         if self.coordinator.data is None:
             return {}
-        from .const import ALARM_MESSAGES
         code = _alarm_code(self.coordinator.data)
         active = [
             ALARM_MESSAGES.get(bit, f"Alarme bit {bit}")
