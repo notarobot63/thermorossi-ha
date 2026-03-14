@@ -3,8 +3,8 @@
   "name": "Thermorossi (WiNET)",
   "version": "1.0.0",
   "config_flow": true,
-  "documentation": "https://git.notarobot.xyz/Thomas/thermorossi-ha",
+  "documentation": "https://github.com/notarobot63/thermorossi-ha",
   "requirements": [],
-  "codeowners": ["@thomas"],
+  "codeowners": ["@notarobot63"],
   "iot_class": "local_polling"
 }
