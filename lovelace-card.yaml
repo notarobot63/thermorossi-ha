@@ -5,7 +5,7 @@
 type: vertical-stack
 cards:
 
-  # ── 1. Carte principale compacte ───────────────────────────
+  # ── 1. Carte principale ─────────────────────────────────────
   - type: custom:bubble-card
     card_type: button
     entity: switch.thermorossi_192_168_1_36_poele
@@ -20,8 +20,7 @@ cards:
     tap_action:
       action: toggle
     hold_action:
-      action: navigate
-      navigation_path: "#thermorossi-reglages"
+      action: more-info
     sub_button:
       - entity: sensor.thermorossi_192_168_1_36_etat
         show_state: true
@@ -42,8 +41,8 @@ cards:
           action: none
       - entity: binary_sensor.thermorossi_192_168_1_36_alarme
         icon: mdi:alert-circle
-        show_icon: "{{ is_state('binary_sensor.thermorossi_192_168_1_36_alarme', 'on') or is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') or is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') }}"
         show_state: false
+        show_icon: "{{ is_state('binary_sensor.thermorossi_192_168_1_36_alarme', 'on') or is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') or is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') }}"
         tap_action:
           action: none
     styles: |
@@ -62,7 +61,31 @@ cards:
         {% endif %}
       }
 
-  # ── 2. Zone alarme (visible directement si alerte active) ──
+  # ── 2. Sliders puissance + ventilation ──────────────────────
+  - type: horizontal-stack
+    cards:
+      - type: custom:mushroom-number-card
+        entity: number.thermorossi_192_168_1_36_niveau_de_puissance
+        name: Puissance
+        icon: mdi:fire
+        icon_color: deep-orange
+        display_mode: slider
+        layout: vertical
+        card_mod:
+          style: |
+            ha-card { padding: 8px 12px; }
+      - type: custom:mushroom-number-card
+        entity: number.thermorossi_192_168_1_36_vitesse_ventilateur
+        name: Ventilation
+        icon: mdi:fan
+        icon_color: blue
+        display_mode: slider
+        layout: vertical
+        card_mod:
+          style: |
+            ha-card { padding: 8px 12px; }
+
+  # ── 3. Zone alarme (visible uniquement si alerte active) ─────
   - type: conditional
     conditions:
       - condition: or
@@ -109,31 +132,3 @@ cards:
             border: 1.5px solid rgba(211,47,47,0.4);
             padding: 8px 16px;
           }
-
-  # ── 3. Pop-up réglages (déclenché par hold sur la carte) ────
-  - type: custom:bubble-card
-    card_type: pop-up
-    hash: "#thermorossi-reglages"
-    name: Réglages poêle
-    icon: mdi:fire-circle
-    cards:
-      - type: custom:mushroom-number-card
-        entity: number.thermorossi_192_168_1_36_niveau_de_puissance
-        name: Puissance
-        icon: mdi:fire
-        icon_color: deep-orange
-        display_mode: slider
-        layout: horizontal
-        card_mod:
-          style: |
-            ha-card { padding: 8px 16px; }
-      - type: custom:mushroom-number-card
-        entity: number.thermorossi_192_168_1_36_vitesse_ventilateur
-        name: Ventilation
-        icon: mdi:fan
-        icon_color: blue
-        display_mode: slider
-        layout: horizontal
-        card_mod:
-          style: |
-            ha-card { padding: 8px 16px; }
