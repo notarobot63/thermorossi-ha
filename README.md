@@ -1,5 +1,9 @@
 # Thermorossi WiNET — Home Assistant Integration
 
+> **🤖 Vibe Coded with Claude**
+> This project was built through an AI-assisted development session with [Claude](https://claude.ai) (Anthropic).
+> It is shared as-is, without warranty of any kind. Test thoroughly before relying on it for anything critical.
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 ![HA min version](https://img.shields.io/badge/HA-2024.1%2B-blue)
 ![Languages](https://img.shields.io/badge/languages-EN%20%7C%20FR%20%7C%20IT-green)
@@ -57,7 +61,7 @@ No cloud. No account. Direct HTTP communication on your local network.
 ### Via HACS (recommended)
 
 1. In HACS, go to **Integrations → ⋮ → Custom repositories**
-2. Add `https://github.com/your-username/thermorossi-ha` as an **Integration**
+2. Add `https://github.com/notarobot63/thermorossi-ha` as an **Integration**
 3. Search for **Thermorossi WiNET** and install
 4. Restart Home Assistant
 
