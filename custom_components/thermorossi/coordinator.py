@@ -59,9 +59,9 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
                 resp.raise_for_status()
                 payload = await resp.json(content_type=None)
         except aiohttp.ClientError as err:
-            raise UpdateFailed(f"Erreur de connexion au poêle ({self.host}): {err}") from err
+            raise UpdateFailed(f"Connection error to stove ({self.host}): {err}") from err
         except Exception as err:
-            raise UpdateFailed(f"Erreur inattendue: {err}") from err
+            raise UpdateFailed(f"Unexpected error: {err}") from err
 
         registers = payload.get("registers", [])
         return {entry[0]: entry[1] for entry in registers}
@@ -105,5 +105,5 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
                 result = await resp.json(content_type=None)
                 return result.get("result", False) is True
         except Exception as err:
-            _LOGGER.error("Erreur envoi commande au poêle: %s", err)
+            _LOGGER.error("Error sending command to stove: %s", err)
             return False

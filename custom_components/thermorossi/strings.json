@@ -51,7 +51,28 @@
         "name": "Fan speed"
       },
       "alarm_message": {
-        "name": "Alarm message"
+        "name": "Alarm message",
+        "state": {
+          "ok": "OK",
+          "no_pellets": "No pellets / Clean burner",
+          "start_failed": "Start failed / Clean burner",
+          "flue_gas_blocked": "Flue gas not evacuated / Check duct",
+          "max_temp": "Max temperature alarm",
+          "flue_probe_disconnected": "Flue temperature probe disconnected",
+          "exhaust_fan_rpm": "Exhaust fan RPM sensor fault",
+          "exhaust_fan_fault": "Exhaust fan alarm",
+          "seismic": "Seismic alarm",
+          "probe_s1_disconnected": "S1 probe disconnected",
+          "probe_s2_disconnected": "S2 probe disconnected",
+          "probe_acs_disconnected": "ACS probe disconnected",
+          "probe_sta_disconnected": "STA probe disconnected",
+          "cleaning_motor": "Cleaning motor fault",
+          "ash_drawer_full": "Ash drawer full",
+          "ash_drawer_missing": "Ash drawer missing",
+          "lcd_timeout": "LCD timeout",
+          "probe_stg_disconnected": "STG probe disconnected",
+          "unknown": "Unknown alarm"
+        }
       }
     },
     "binary_sensor": {

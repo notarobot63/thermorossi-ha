@@ -51,7 +51,28 @@
         "name": "Velocità ventilatore"
       },
       "alarm_message": {
-        "name": "Messaggio di allarme"
+        "name": "Messaggio di allarme",
+        "state": {
+          "ok": "OK",
+          "no_pellets": "Nessun pellet / Pulire bruciatore",
+          "start_failed": "Avvio fallito / Pulire bruciatore",
+          "flue_gas_blocked": "Fumi non evacuati / Verificare condotto",
+          "max_temp": "Allarme temperatura massima",
+          "flue_probe_disconnected": "Sonda temperatura fumi scollegata",
+          "exhaust_fan_rpm": "Sensore RPM estrattore fumi",
+          "exhaust_fan_fault": "Allarme ventilatore fumi",
+          "seismic": "Allarme sismico",
+          "probe_s1_disconnected": "Sonda S1 scollegata",
+          "probe_s2_disconnected": "Sonda S2 scollegata",
+          "probe_acs_disconnected": "Sonda ACS scollegata",
+          "probe_sta_disconnected": "Sonda STA scollegata",
+          "cleaning_motor": "Guasto motore pulizia",
+          "ash_drawer_full": "Cassetto cenere pieno",
+          "ash_drawer_missing": "Cassetto cenere assente",
+          "lcd_timeout": "Timeout LCD",
+          "probe_stg_disconnected": "Sonda STG scollegata",
+          "unknown": "Allarme sconosciuto"
+        }
       }
     },
     "binary_sensor": {

@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
-    ALARM_MESSAGES,
+    ALARM_CODES,
     ERROR_STATE,
     REG_ALARM_LSB,
     REG_ALARM_MSB,
@@ -84,11 +84,11 @@ class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
             return {}
         code = _alarm_code(self.coordinator.data)
         active = [
-            ALARM_MESSAGES.get(bit, f"Alarme bit {bit}")
+            ALARM_CODES.get(bit, f"alarm_bit_{bit}")
             for bit in range(32)
             if code & (1 << bit)
         ]
-        return {"alarmes_actives": active, "code": code}
+        return {"active_alarms": active, "code": code}
 
 
 class ThermorossiPelletSensor(ThermorossiBaseBinarySensor):

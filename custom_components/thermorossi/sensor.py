@@ -20,7 +20,7 @@ from .const import (
     REG_ALARM_LSB,
     REG_ALARM_MSB,
     STATUS_CODES,
-    ALARM_MESSAGES,
+    ALARM_CODES,
     TEMP_MUL,
     TEMP_OFFSET,
 )
@@ -167,11 +167,11 @@ class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
         msb = self.coordinator.data.get(REG_ALARM_MSB, 0)
         code = (msb << 16) | lsb
         if code == 0:
-            return "OK"
+            return "ok"
         for bit in range(32):
             if code & (1 << bit):
-                return ALARM_MESSAGES.get(bit, f"Alarme bit {bit}")
-        return "OK"
+                return ALARM_CODES.get(bit, "unknown")
+        return "ok"
 
 
 def coordinator_get(coordinator: ThermorossiCoordinator, index: int) -> int | None:
