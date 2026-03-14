@@ -1,16 +1,15 @@
-# Automations Thermorossi — à inclure dans configuration.yaml :
-#   automation: !include thermorossi_automations.yaml
-# ou à coller dans votre fichier automations.yaml existant.
+# Thermorossi — Example automations
+# Add to configuration.yaml:  automation: !include automations.yaml
+# or paste into your existing automations.yaml.
 #
-# Prérequis : intégration NTFY configurée dans HA, ou adapter le service
-# notify.* selon votre setup (ntfy, mobile_app, signal...).
-# URL NTFY Thomas : https://notify.notarobot.xyz/Backups (adapter le topic)
+# Notifications use notify.ntfy — adapt to your setup:
+# notify.mobile_app_*, notify.signal, notify.pushover, etc.
 
 # ─────────────────────────────────────────────────────────────────
-# 1. ALARME GÉNÉRALE (bit 32 — reg[8]+reg[9])
-#    Couvre tous les codes d'alarme : pellets, démarrage, fumées...
+# 1. GENERAL ALARM (any alarm bit set — reg[8]+reg[9])
+#    Covers all alarm codes: pellets, start failure, flue gas...
 # ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Alarme active"
+- alias: "Thermorossi - Alarm active"
   id: thermorossi_alarm_active
   trigger:
     - platform: state
@@ -19,15 +18,15 @@
   action:
     - service: notify.ntfy
       data:
-        title: "🔥 Poêle Thermorossi"
+        title: "Thermorossi stove"
         message: >
-          ⚠️ Alarme : {{ states('sensor.thermorossi_message_alarme') }}
+          Alarm: {{ states('sensor.thermorossi_message_alarme') }}
 
 # ─────────────────────────────────────────────────────────────────
-# 2. ARRÊT ERREUR (état STOP — reg[6]=8)
-#    Le poêle s'est arrêté sur erreur (en plus de l'alarme)
+# 2. ERROR STOP (STOP state — reg[6]=8)
+#    Stove stopped on fault (in addition to the alarm sensor)
 # ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Arrêt erreur (STOP)"
+- alias: "Thermorossi - Error stop"
   id: thermorossi_stop_error
   trigger:
     - platform: state
@@ -36,17 +35,15 @@
   action:
     - service: notify.ntfy
       data:
-        title: "🔥 Poêle Thermorossi"
+        title: "Thermorossi stove"
         message: >
-          🛑 Poêle arrêté en erreur.
-          Alarme : {{ states('sensor.thermorossi_message_alarme') }}
-          État : {{ states('sensor.thermorossi_etat') }}
+          Stove stopped on error.
+          Alarm: {{ states('sensor.thermorossi_message_alarme') }}
 
 # ─────────────────────────────────────────────────────────────────
-# 3. PELLETS INSUFFISANTS (capteur réserve — reg[10])
-#    Capteur hardware de niveau bas dans le bac
+# 3. PELLETS LOW (hardware level sensor — reg[10])
 # ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Pellets insuffisants"
+- alias: "Thermorossi - Pellets low"
   id: thermorossi_pellets_low
   trigger:
     - platform: state
@@ -55,82 +52,80 @@
   action:
     - service: notify.ntfy
       data:
-        title: "🔥 Poêle Thermorossi"
-        message: "⚠️ Réserve pellets vide — recharger le bac"
+        title: "Thermorossi stove"
+        message: "Pellet reserve empty — refill the hopper"
 
 # ─────────────────────────────────────────────────────────────────
-# 4. ALLUMAGE BLOQUÉ — brûleur encrassé
-#    Le poêle reste en START sans passer en WORK.
-#    L'allumage d'un feu étant variable, on attend 25 min.
+# 4. STUCK IGNITION — clogged burner
+#    Stove stays in START without reaching WORK after 25 min.
 # ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Allumage bloqué (brûleur)"
+- alias: "Thermorossi - Stuck ignition"
   id: thermorossi_stuck_start
   trigger:
     - platform: state
       entity_id: sensor.thermorossi_etat
-      to: "Allumage"
+      to: "start"
       for:
         minutes: 25
   condition:
     - condition: state
       entity_id: sensor.thermorossi_etat
-      state: "Allumage"
+      state: "start"
   action:
     - service: notify.ntfy
       data:
-        title: "🔥 Poêle Thermorossi"
-        message: "⚠️ Allumage bloqué depuis 25 min — brûleur à nettoyer ?"
+        title: "Thermorossi stove"
+        message: "Ignition stuck for 25 min — burner may need cleaning"
 
 # ─────────────────────────────────────────────────────────────────
-# 5. EXTINCTION INATTENDUE EN COURS DE CHAUFFE
-#    Transition WORK → OFF ou STOP (pellets épuisés en cours de route)
+# 5. UNEXPECTED SHUTDOWN DURING HEATING
+#    Transition from WORK to OFF or STOP (pellets run out mid-session)
 # ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Extinction en cours de chauffe"
+- alias: "Thermorossi - Unexpected shutdown"
   id: thermorossi_unexpected_stop
   trigger:
     - platform: state
       entity_id: sensor.thermorossi_etat
-      from: "Chauffe"
+      from: "work"
   condition:
     - condition: template
       value_template: >
-        {{ trigger.to_state.state in ['Éteint', 'Arrêt (erreur)'] }}
+        {{ trigger.to_state.state in ['off', 'stop'] }}
   action:
     - service: notify.ntfy
       data:
-        title: "🔥 Poêle Thermorossi"
+        title: "Thermorossi stove"
         message: >
-          ⚠️ Poêle éteint pendant la chauffe → {{ trigger.to_state.state }}.
+          Stove stopped during heating → {{ trigger.to_state.state }}.
           {% if states('binary_sensor.thermorossi_pellets_insuffisants') == 'on' %}
-          Cause probable : pellets épuisés.
+          Probable cause: pellets exhausted.
           {% elif states('binary_sensor.thermorossi_alarme') == 'on' %}
-          Alarme : {{ states('sensor.thermorossi_message_alarme') }}
+          Alarm: {{ states('sensor.thermorossi_message_alarme') }}
           {% else %}
-          Vérifier l'état du poêle.
+          Check stove status.
           {% endif %}
 
 # ─────────────────────────────────────────────────────────────────
-# 6. RETOUR EN CHAUFFE (confirmation allumage réussi)
-#    Optionnel — notifie quand le poêle passe en WORK
+# 6. HEATING STARTED (optional — confirms successful ignition)
 # ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Chauffe démarrée"
+- alias: "Thermorossi - Heating started"
   id: thermorossi_work_started
   trigger:
     - platform: state
       entity_id: sensor.thermorossi_etat
-      to: "Chauffe"
+      to: "work"
   action:
     - service: notify.ntfy
       data:
-        title: "🔥 Poêle Thermorossi"
+        title: "Thermorossi stove"
         message: >
-          ✅ Poêle en chauffe — puissance {{ states('sensor.thermorossi_niveau_de_puissance') }}/5
+          Stove heating — power level {{ states('sensor.thermorossi_niveau_de_puissance') }}/5
 
 # ─────────────────────────────────────────────────────────────────
-# 7. ALARME RÉSOLUE
-#    Notifie quand toutes les alarmes sont effacées
+# 7. ALARM CLEARED
+#    Notifies when all alarms are resolved
 # ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Alarme résolue"
+- alias: "Thermorossi - Alarm cleared"
   id: thermorossi_alarm_cleared
   trigger:
     - platform: state
@@ -140,5 +135,5 @@
   action:
     - service: notify.ntfy
       data:
-        title: "🔥 Poêle Thermorossi"
-        message: "✅ Alarme résolue — poêle prêt"
+        title: "Thermorossi stove"
+        message: "Alarm cleared — stove ready"
