@@ -77,8 +77,11 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
         return await self._send_command(CMD_OFF)
 
     async def _send_command(self, value: int) -> bool:
+        return await self._send_command_reg(SET_REG_ID, value)
+
+    async def _send_command_reg(self, reg_id: int, value: int) -> bool:
         url = f"{self._base_url}{API_SET_REGISTER}"
-        payload = f"key={SET_KEY}&regId={SET_REG_ID}&value={value}&result=false"
+        payload = f"key={SET_KEY}&regId={reg_id}&value={value}&result=false"
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
