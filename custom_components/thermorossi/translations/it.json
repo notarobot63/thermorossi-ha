@@ -10,6 +10,7 @@
       }
     },
     "error": {
+      "invalid_host": "Indirizzo IP o nome host non valido.",
       "cannot_connect": "Impossibile connettersi alla stufa. Verifica l'indirizzo IP.",
       "invalid_response": "Risposta inattesa dalla stufa."
     },

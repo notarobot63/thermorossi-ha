@@ -10,6 +10,7 @@
       }
     },
     "error": {
+      "invalid_host": "Adresse IP ou nom d'hôte invalide.",
       "cannot_connect": "Impossible de se connecter au poêle. Vérifiez l'adresse IP.",
       "invalid_response": "Réponse inattendue du poêle."
     },

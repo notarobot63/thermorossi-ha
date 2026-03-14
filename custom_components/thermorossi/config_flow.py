@@ -1,6 +1,9 @@
 """Config flow for the Thermorossi integration."""
 from __future__ import annotations
 
+import ipaddress
+import re
+
 import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
@@ -8,6 +11,21 @@ from homeassistant.const import CONF_HOST
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN, API_GET_REGISTERS, API_HEADERS, GET_PAYLOAD
+
+_HOSTNAME_RE = re.compile(
+    r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?'
+    r'(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$'
+)
+
+
+def _is_valid_host(host: str) -> bool:
+    """Return True if host is a valid IPv4/IPv6 address or hostname."""
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        pass
+    return bool(_HOSTNAME_RE.match(host)) and len(host) <= 253
 
 
 class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -22,16 +40,20 @@ class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
-            await self.async_set_unique_id(host)
-            self._abort_if_unique_id_configured()
 
-            error = await self._test_connection(host)
-            if error is None:
-                return self.async_create_entry(
-                    title=f"Thermorossi ({host})",
-                    data={CONF_HOST: host},
-                )
-            errors["base"] = error
+            if not _is_valid_host(host):
+                errors["base"] = "invalid_host"
+            else:
+                await self.async_set_unique_id(host)
+                self._abort_if_unique_id_configured()
+
+                error = await self._test_connection(host)
+                if error is None:
+                    return self.async_create_entry(
+                        title=f"Thermorossi ({host})",
+                        data={CONF_HOST: host},
+                    )
+                errors["base"] = error
 
         return self.async_show_form(
             step_id="user",
