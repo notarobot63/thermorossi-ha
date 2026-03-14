@@ -48,7 +48,7 @@ class ThermorossiBaseBinarySensor(
         super().__init__(coordinator)
         self._attr_device_info = {
             "identifiers": {("thermorossi", entry.data["host"])},
-            "name": f"Thermorossi ({entry.data['host']})",
+            "name": "Thermorossi",
             "manufacturer": "Thermorossi",
             "model": "WiNET",
         }
