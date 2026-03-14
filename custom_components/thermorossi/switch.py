@@ -5,10 +5,10 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ACTIVE_STATES, ERROR_STATE, REG_STATUS
 from .coordinator import ThermorossiCoordinator
+from .entity import ThermorossiEntity
 
 
 async def async_setup_entry(
@@ -20,20 +20,13 @@ async def async_setup_entry(
     async_add_entities([ThermorossiSwitch(coordinator, entry)])
 
 
-class ThermorossiSwitch(CoordinatorEntity[ThermorossiCoordinator], SwitchEntity):
-    _attr_has_entity_name = True
+class ThermorossiSwitch(ThermorossiEntity, SwitchEntity):
     _attr_name = "Poêle"
     _attr_icon = "mdi:fire"
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
+        super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_switch"
-        self._attr_device_info = {
-            "identifiers": {("thermorossi", entry.data["host"])},
-            "name": "Thermorossi",
-            "manufacturer": "Thermorossi",
-            "model": "WiNET",
-        }
 
     @property
     def is_on(self) -> bool:

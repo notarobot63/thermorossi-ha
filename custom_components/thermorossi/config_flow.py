@@ -5,13 +5,9 @@ import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, API_GET_REGISTERS, GET_PAYLOAD
-
-HEADERS = {
-    "Content-Type": "application/x-www-form-urlencoded",
-    "X-Requested-With": "XMLHttpRequest",
-}
+from .const import DOMAIN, API_GET_REGISTERS, API_HEADERS, GET_PAYLOAD
 
 
 class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -47,17 +43,17 @@ class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
         """Try connecting to the stove. Returns an error key or None on success."""
         url = f"http://{host}{API_GET_REGISTERS}"
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url,
-                    data=GET_PAYLOAD,
-                    headers=HEADERS,
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    resp.raise_for_status()
-                    data = await resp.json(content_type=None)
-                    if "registers" not in data:
-                        return "invalid_response"
+            session = async_get_clientsession(self.hass)
+            async with session.post(
+                url,
+                data=GET_PAYLOAD,
+                headers=API_HEADERS,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                resp.raise_for_status()
+                data = await resp.json(content_type=None)
+                if "registers" not in data:
+                    return "invalid_response"
         except aiohttp.ClientConnectorError:
             return "cannot_connect"
         except Exception:
