@@ -41,17 +41,6 @@ STATUS_CODES = {
     9: "sunout",
 }
 
-STATUS_LABELS = {
-    "off":       "Éteint",
-    "start":     "Allumage",
-    "work":      "Chauffe",
-    "wait_on":   "En attente",
-    "temp_ok":   "Temp. OK",
-    "wait_time": "Attente horaire",
-    "stop":      "Arrêt (erreur)",
-    "sunout":    "Arrêt estival",
-}
-
 # States considered "on" (stove is active/heating)
 ACTIVE_STATES = {2, 3, 4, 5}
 

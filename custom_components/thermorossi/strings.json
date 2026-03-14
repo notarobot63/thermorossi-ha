@@ -2,19 +2,76 @@
   "config": {
     "step": {
       "user": {
-        "title": "Thermorossi WiNET",
-        "description": "Entrez l'adresse IP de votre poêle Thermorossi.",
+        "title": "Connect to Thermorossi stove",
+        "description": "Enter the IP address of your Thermorossi stove.",
         "data": {
-          "host": "Adresse IP"
+          "host": "Host / IP address"
         }
       }
     },
     "error": {
-      "cannot_connect": "Impossible de se connecter au poêle. Vérifiez l'adresse IP.",
-      "invalid_response": "Réponse inattendue du poêle."
+      "cannot_connect": "Unable to connect to the stove. Check the IP address.",
+      "invalid_response": "Unexpected response from the stove."
     },
     "abort": {
-      "already_configured": "Ce poêle est déjà configuré."
+      "already_configured": "This stove is already configured."
+    }
+  },
+  "entity": {
+    "switch": {
+      "stove": {
+        "name": "Stove"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "State",
+        "state": {
+          "off": "Off",
+          "start": "Starting",
+          "work": "Heating",
+          "wait_on": "Standby",
+          "temp_ok": "Temperature OK",
+          "wait_time": "Scheduled standby",
+          "stop": "Error stop",
+          "sunout": "Summer shutdown",
+          "unknown": "Unknown"
+        }
+      },
+      "set_temperature": {
+        "name": "Temperature setpoint"
+      },
+      "air_temperature": {
+        "name": "Ambient temperature"
+      },
+      "fire_level": {
+        "name": "Power level"
+      },
+      "fan_speed": {
+        "name": "Fan speed"
+      },
+      "alarm_message": {
+        "name": "Alarm message"
+      }
+    },
+    "binary_sensor": {
+      "error_stop": {
+        "name": "Error stop"
+      },
+      "alarm": {
+        "name": "Alarm"
+      },
+      "pellets_low": {
+        "name": "Pellets low"
+      }
+    },
+    "number": {
+      "fire_level": {
+        "name": "Power level"
+      },
+      "fan_speed": {
+        "name": "Fan speed"
+      }
     }
   }
 }

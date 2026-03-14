@@ -28,6 +28,7 @@ class ThermorossiBaseNumber(ThermorossiEntity, NumberEntity):
 
 
 class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
+    _attr_translation_key = "fire_level"
     _attr_name = "Niveau de puissance"
     _attr_icon = "mdi:fire"
     _attr_native_min_value = 1
@@ -51,6 +52,7 @@ class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
 
 
 class ThermorossiFanSpeedNumber(ThermorossiBaseNumber):
+    _attr_translation_key = "fan_speed"
     _attr_name = "Vitesse ventilateur"
     _attr_icon = "mdi:fan"
     _attr_native_min_value = 1

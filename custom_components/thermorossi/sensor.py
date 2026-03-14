@@ -20,7 +20,6 @@ from .const import (
     REG_ALARM_LSB,
     REG_ALARM_MSB,
     STATUS_CODES,
-    STATUS_LABELS,
     ALARM_MESSAGES,
     TEMP_MUL,
     TEMP_OFFSET,
@@ -50,20 +49,19 @@ class ThermorossiBaseSensor(ThermorossiEntity, SensorEntity):
 
 
 class ThermorossiStatusSensor(ThermorossiBaseSensor):
+    _attr_translation_key = "status"
     _attr_name = "État"
-    _attr_icon = "mdi:fire"
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_status"
 
     @property
-    def native_value(self) -> str:
+    def native_value(self) -> str | None:
         raw = coordinator_get(self.coordinator, REG_STATUS)
         if raw is None:
-            return "Inconnu"
-        code = STATUS_CODES.get(raw & 0xFF, "unknown")
-        return STATUS_LABELS.get(code, f"État {raw & 0xFF}")
+            return None
+        return STATUS_CODES.get(raw & 0xFF, "unknown")
 
     @property
     def icon(self) -> str:
@@ -79,6 +77,7 @@ class ThermorossiStatusSensor(ThermorossiBaseSensor):
 
 
 class ThermorossiSetTempSensor(ThermorossiBaseSensor):
+    _attr_translation_key = "set_temperature"
     _attr_name = "Consigne température"
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -97,6 +96,7 @@ class ThermorossiSetTempSensor(ThermorossiBaseSensor):
 
 
 class ThermorossiAirTempSensor(ThermorossiBaseSensor):
+    _attr_translation_key = "air_temperature"
     _attr_name = "Température ambiante"
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -120,6 +120,7 @@ class ThermorossiAirTempSensor(ThermorossiBaseSensor):
 
 
 class ThermorossiFireLevelSensor(ThermorossiBaseSensor):
+    _attr_translation_key = "fire_level"
     _attr_name = "Niveau de puissance"
     _attr_icon = "mdi:speedometer"
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -134,6 +135,7 @@ class ThermorossiFireLevelSensor(ThermorossiBaseSensor):
 
 
 class ThermorossiFanSpeedSensor(ThermorossiBaseSensor):
+    _attr_translation_key = "fan_speed"
     _attr_name = "Vitesse ventilateur"
     _attr_icon = "mdi:fan"
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -149,6 +151,7 @@ class ThermorossiFanSpeedSensor(ThermorossiBaseSensor):
 
 class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
     """Shows the first active alarm message, or 'OK' when no alarm."""
+    _attr_translation_key = "alarm_message"
     _attr_name = "Message alarme"
     _attr_icon = "mdi:alert-circle"
 
@@ -157,9 +160,9 @@ class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
         self._attr_unique_id = f"{entry.entry_id}_alarm_msg"
 
     @property
-    def native_value(self) -> str:
+    def native_value(self) -> str | None:
         if self.coordinator.data is None:
-            return "Inconnu"
+            return None
         lsb = self.coordinator.data.get(REG_ALARM_LSB, 0)
         msb = self.coordinator.data.get(REG_ALARM_MSB, 0)
         code = (msb << 16) | lsb

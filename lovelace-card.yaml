@@ -36,13 +36,13 @@ cards:
     styles: |
       .bubble-icon {
         {% set s = states('sensor.thermorossi_etat') %}
-        {% if s == 'Arrêt (erreur)' %}
+        {% if s == 'stop' %}
           color: rgb(211,47,47) !important;
-        {% elif s == 'Chauffe' %}
+        {% elif s == 'work' %}
           color: rgb(230,81,0) !important;
-        {% elif s == 'Allumage' %}
+        {% elif s == 'start' %}
           color: rgb(251,140,0) !important;
-        {% elif s in ['Temp. OK', 'En attente'] %}
+        {% elif s in ['temp_ok', 'wait_on'] %}
           color: rgb(255,193,7) !important;
         {% else %}
           color: var(--secondary-text-color) !important;

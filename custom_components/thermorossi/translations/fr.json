@@ -1,0 +1,77 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Thermorossi WiNET",
+        "description": "Entrez l'adresse IP de votre poêle Thermorossi.",
+        "data": {
+          "host": "Adresse IP"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter au poêle. Vérifiez l'adresse IP.",
+      "invalid_response": "Réponse inattendue du poêle."
+    },
+    "abort": {
+      "already_configured": "Ce poêle est déjà configuré."
+    }
+  },
+  "entity": {
+    "switch": {
+      "stove": {
+        "name": "Poêle"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "État",
+        "state": {
+          "off": "Éteint",
+          "start": "Allumage",
+          "work": "Chauffe",
+          "wait_on": "En attente",
+          "temp_ok": "Temp. OK",
+          "wait_time": "Attente horaire",
+          "stop": "Arrêt (erreur)",
+          "sunout": "Arrêt estival",
+          "unknown": "Inconnu"
+        }
+      },
+      "set_temperature": {
+        "name": "Consigne température"
+      },
+      "air_temperature": {
+        "name": "Température ambiante"
+      },
+      "fire_level": {
+        "name": "Niveau de puissance"
+      },
+      "fan_speed": {
+        "name": "Vitesse ventilateur"
+      },
+      "alarm_message": {
+        "name": "Message alarme"
+      }
+    },
+    "binary_sensor": {
+      "error_stop": {
+        "name": "Arrêt erreur"
+      },
+      "alarm": {
+        "name": "Alarme"
+      },
+      "pellets_low": {
+        "name": "Pellets insuffisants"
+      }
+    },
+    "number": {
+      "fire_level": {
+        "name": "Niveau de puissance"
+      },
+      "fan_speed": {
+        "name": "Vitesse ventilateur"
+      }
+    }
+  }
+}
