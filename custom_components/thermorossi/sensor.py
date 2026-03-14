@@ -18,8 +18,11 @@ from .const import (
     REG_AIR_TEMP,
     REG_FIRE_LEVEL,
     REG_FAN_SPEED,
+    REG_ALARM_LSB,
+    REG_ALARM_MSB,
     STATUS_CODES,
     STATUS_LABELS,
+    ALARM_MESSAGES,
     TEMP_MUL,
     TEMP_OFFSET,
 )
@@ -38,6 +41,7 @@ async def async_setup_entry(
         ThermorossiAirTempSensor(coordinator, entry),
         ThermorossiFireLevelSensor(coordinator, entry),
         ThermorossiFanSpeedSensor(coordinator, entry),
+        ThermorossiAlarmMessageSensor(coordinator, entry),
     ])
 
 
@@ -151,6 +155,30 @@ class ThermorossiFanSpeedSensor(ThermorossiBaseSensor):
     @property
     def native_value(self) -> int | None:
         return coordinator_get(self.coordinator, REG_FAN_SPEED)
+
+
+class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
+    """Shows the first active alarm message, or 'OK' when no alarm."""
+    _attr_name = "Message alarme"
+    _attr_icon = "mdi:alert-circle"
+
+    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_alarm_msg"
+
+    @property
+    def native_value(self) -> str:
+        if self.coordinator.data is None:
+            return "Inconnu"
+        lsb = self.coordinator.data.get(REG_ALARM_LSB, 0)
+        msb = self.coordinator.data.get(REG_ALARM_MSB, 0)
+        code = (msb << 16) | lsb
+        if code == 0:
+            return "OK"
+        for bit in range(32):
+            if code & (1 << bit):
+                return ALARM_MESSAGES.get(bit, f"Alarme bit {bit}")
+        return "OK"
 
 
 def coordinator_get(coordinator: ThermorossiCoordinator, index: int) -> int | None:

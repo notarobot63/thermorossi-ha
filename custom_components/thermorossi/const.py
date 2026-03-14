@@ -57,3 +57,28 @@ ACTIVE_STATES = {2, 3, 4, 5}
 
 # Error state
 ERROR_STATE = 8
+
+# Alarm registers (32-bit code split across two 16-bit registers)
+REG_ALARM_LSB = 8   # bits 0–15
+REG_ALARM_MSB = 9   # bits 16–31
+
+# Alarm bit messages (from WiNET JS source)
+ALARM_MESSAGES = {
+    0:  "Pas de pellets / Nettoyer brûleur",
+    1:  "Démarrage échoué / Nettoyer brûleur",
+    2:  "Fumées non évacuées / Vérifier conduit",
+    3:  "Alarme température max",
+    4:  "Sonde température fumées déconnectée",
+    5:  "Capteur RPM extracteur fumées",
+    6:  "Alarme ventilateur fumées",
+    7:  "Alarme sismique",
+    8:  "Sonde S1 déconnectée",
+    9:  "Sonde S2 déconnectée",
+    10: "Sonde ACS déconnectée",
+    11: "Sonde STA déconnectée",
+    12: "Moteur nettoyage",
+    13: "Tiroir plein",
+    14: "Tiroir absent",
+    15: "Timeout LCD",
+    16: "Sonde STG déconnectée",
+}

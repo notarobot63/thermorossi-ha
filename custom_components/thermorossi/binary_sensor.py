@@ -10,7 +10,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import ERROR_STATE, REG_PELLET, REG_STATUS
+from .const import (
+    ERROR_STATE,
+    REG_ALARM_LSB,
+    REG_ALARM_MSB,
+    REG_PELLET,
+    REG_STATUS,
+)
 from .coordinator import ThermorossiCoordinator
 
 
@@ -22,8 +28,15 @@ async def async_setup_entry(
     coordinator: ThermorossiCoordinator = entry.runtime_data
     async_add_entities([
         ThermorossiErrorSensor(coordinator, entry),
+        ThermorossiAlarmSensor(coordinator, entry),
         ThermorossiPelletSensor(coordinator, entry),
     ])
+
+
+def _alarm_code(data: dict) -> int:
+    lsb = data.get(REG_ALARM_LSB, 0)
+    msb = data.get(REG_ALARM_MSB, 0)
+    return (msb << 16) | lsb
 
 
 class ThermorossiBaseBinarySensor(
@@ -42,7 +55,8 @@ class ThermorossiBaseBinarySensor(
 
 
 class ThermorossiErrorSensor(ThermorossiBaseBinarySensor):
-    _attr_name = "Erreur"
+    """Active when the stove is in STOP error state (reg[6]==8)."""
+    _attr_name = "Arrêt erreur"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
@@ -57,7 +71,37 @@ class ThermorossiErrorSensor(ThermorossiBaseBinarySensor):
         return (raw & 0xFF) == ERROR_STATE
 
 
+class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
+    """Active when any alarm bit is set in the 32-bit alarm code (reg[8]+reg[9])."""
+    _attr_name = "Alarme"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_alarm"
+
+    @property
+    def is_on(self) -> bool:
+        if self.coordinator.data is None:
+            return False
+        return _alarm_code(self.coordinator.data) != 0
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        if self.coordinator.data is None:
+            return {}
+        from .const import ALARM_MESSAGES
+        code = _alarm_code(self.coordinator.data)
+        active = [
+            ALARM_MESSAGES.get(bit, f"Alarme bit {bit}")
+            for bit in range(32)
+            if code & (1 << bit)
+        ]
+        return {"alarmes_actives": active, "code": code}
+
+
 class ThermorossiPelletSensor(ThermorossiBaseBinarySensor):
+    """Active when the pellet reserve sensor reports empty (reg[10] != 0)."""
     _attr_name = "Pellets insuffisants"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:grain"
