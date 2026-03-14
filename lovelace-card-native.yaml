@@ -1,0 +1,64 @@
+# Carte Thermorossi — 100% natif HA (tile cards)
+# Aucun custom card requis
+
+type: vertical-stack
+cards:
+
+  # ── 1. Switch principal ──────────────────────────────────────
+  - type: tile
+    entity: switch.thermorossi_poele
+    name: Poêle Thermorossi
+    icon: mdi:fire
+    color: deep-orange
+    features:
+      - type: toggle
+
+  # ── 2. Puissance + Ventilation ───────────────────────────────
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: tile
+        entity: number.thermorossi_niveau_de_puissance
+        name: Puissance
+        icon: mdi:fire
+        color: deep-orange
+        features:
+          - type: numeric-input
+            style: slider
+      - type: tile
+        entity: number.thermorossi_vitesse_ventilateur
+        name: Ventilation
+        icon: mdi:fan
+        color: blue
+        features:
+          - type: numeric-input
+            style: slider
+
+  # ── 3. Zone alarme (visible uniquement si alerte active) ─────
+  - type: conditional
+    conditions:
+      - condition: or
+        conditions:
+          - condition: state
+            entity: binary_sensor.thermorossi_alarme
+            state: "on"
+          - condition: state
+            entity: binary_sensor.thermorossi_arret_erreur
+            state: "on"
+          - condition: state
+            entity: binary_sensor.thermorossi_pellets_insuffisants
+            state: "on"
+    card:
+      type: tile
+      entity: binary_sensor.thermorossi_arret_erreur
+      name: >
+        {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
+          Poêle arrêté — {{ states('sensor.thermorossi_message_alarme') }}
+        {% elif is_state('binary_sensor.thermorossi_alarme', 'on') %}
+          {{ states('sensor.thermorossi_message_alarme') }}
+        {% else %}
+          Réserve pellets vide
+        {% endif %}
+      icon: mdi:fire-alert
+      color: red
