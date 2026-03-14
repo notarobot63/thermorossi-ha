@@ -1,5 +1,4 @@
 # Carte Thermorossi — Bubble Card + Mushroom
-# Coller dans l'éditeur YAML du tableau de bord HA
 # Nécessite: Bubble Card, Mushroom Cards, Card Mod
 
 type: vertical-stack
@@ -32,13 +31,13 @@ cards:
         show_state: true
         show_icon: true
         tap_action:
-          action: none
+          action: more-info
       - entity: number.thermorossi_192_168_1_36_vitesse_ventilateur
         icon: mdi:fan
         show_state: true
         show_icon: true
         tap_action:
-          action: none
+          action: more-info
       - entity: binary_sensor.thermorossi_192_168_1_36_alarme
         icon: mdi:alert-circle
         show_state: false
@@ -61,31 +60,7 @@ cards:
         {% endif %}
       }
 
-  # ── 2. Sliders puissance + ventilation ──────────────────────
-  - type: horizontal-stack
-    cards:
-      - type: custom:mushroom-number-card
-        entity: number.thermorossi_192_168_1_36_niveau_de_puissance
-        name: Puissance
-        icon: mdi:fire
-        icon_color: deep-orange
-        display_mode: slider
-        layout: vertical
-        card_mod:
-          style: |
-            ha-card { padding: 8px 12px; }
-      - type: custom:mushroom-number-card
-        entity: number.thermorossi_192_168_1_36_vitesse_ventilateur
-        name: Ventilation
-        icon: mdi:fan
-        icon_color: blue
-        display_mode: slider
-        layout: vertical
-        card_mod:
-          style: |
-            ha-card { padding: 8px 12px; }
-
-  # ── 3. Zone alarme (visible uniquement si alerte active) ─────
+  # ── 2. Zone alarme (visible uniquement si alerte active) ─────
   - type: conditional
     conditions:
       - condition: or
