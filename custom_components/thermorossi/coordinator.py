@@ -21,6 +21,8 @@ from .const import (
     CMD_OFF,
     SET_KEY,
     SET_REG_ID,
+    REG_ALARM_LSB,
+    REG_ALARM_MSB,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,11 +41,12 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
 
-    def get_register(self, index: int) -> int | None:
-        """Return the value of a register by index, or None if unavailable."""
+    @property
+    def alarm_code(self) -> int:
+        """Return the 32-bit alarm code (0 = no alarm)."""
         if self.data is None:
-            return None
-        return self.data.get(index)
+            return 0
+        return (self.data.get(REG_ALARM_MSB, 0) << 16) | self.data.get(REG_ALARM_LSB, 0)
 
     async def _async_update_data(self) -> dict[int, int]:
         """Fetch registers from the stove."""
