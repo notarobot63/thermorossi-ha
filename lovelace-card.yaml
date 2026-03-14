@@ -1,14 +1,14 @@
-# Carte Thermorossi — Bubble Card + Mushroom
-# Nécessite: Bubble Card, Mushroom Cards, Card Mod
+# Thermorossi card — Bubble Card + Mushroom
+# Requires: Bubble Card, Mushroom Cards, Card Mod
 
 type: vertical-stack
 cards:
 
-  # ── 1. Carte principale ─────────────────────────────────────
+  # ── 1. Main button ───────────────────────────────────────────
   - type: custom:bubble-card
     card_type: button
     entity: switch.thermorossi_poele
-    name: Poêle Thermorossi
+    name: Thermorossi Stove
     icon: mdi:fire
     show_state: false
     tap_action:
@@ -49,7 +49,7 @@ cards:
         {% endif %}
       }
 
-  # ── 2. Zone alarme (visible uniquement si alerte active) ─────
+  # ── 2. Alarm banner (visible only when an alert is active) ───
   - type: conditional
     conditions:
       - condition: or
@@ -67,17 +67,17 @@ cards:
       type: custom:mushroom-template-card
       primary: >
         {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
-          🛑 Poêle arrêté — {{ states('sensor.thermorossi_message_alarme') }}
+          🛑 Stove stopped — {{ states('sensor.thermorossi_message_alarme') }}
         {% elif is_state('binary_sensor.thermorossi_alarme', 'on') %}
           ⚠️ {{ states('sensor.thermorossi_message_alarme') }}
         {% elif is_state('binary_sensor.thermorossi_pellets_insuffisants', 'on') %}
-          ⚠️ Réserve pellets vide
+          ⚠️ Pellet reserve empty
         {% endif %}
       secondary: >
         {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
-          Vérifier le brûleur ou les pellets avant de relancer
+          Check burner or pellets before restarting
         {% elif is_state('binary_sensor.thermorossi_pellets_insuffisants', 'on') %}
-          Recharger le bac à pellets
+          Refill the pellet hopper
         {% endif %}
       icon: >
         {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
