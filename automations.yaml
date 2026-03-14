@@ -1,16 +1,13 @@
-# Thermorossi — Automations (Signal notifications via signal-cli REST API)
+# Thermorossi — Automations (Signal notifications via SignalMe)
 #
 # Prerequisites — add to configuration.yaml:
 #
 #   rest_command:
-#     signal_stove:
-#       url: "http://192.168.1.23:8085/v2/send"
+#     signal_notify:
+#       url: "http://<signalme-host>:<port>/webhook/<source-slug>"
 #       method: POST
-#       headers:
-#         Content-Type: "application/json"
-#       payload: >-
-#         {"message": "{{ message }}", "number": "+33783156066",
-#          "recipients": ["group.eitXckJTb2J4Z2x6bENHQ05hZDhtQ05qRGpidkVMdzJUUkVwNVZDdUxQVT0="]}
+#       content_type: "application/json"
+#       payload: '{"message": "{{ message }}"}'
 
 # ─────────────────────────────────────────────────────────────────
 # 1. GENERAL ALARM (any alarm bit set — reg[8]+reg[9])
@@ -22,7 +19,7 @@
       entity_id: binary_sensor.thermorossi_alarme
       to: "on"
   action:
-    - service: rest_command.signal_stove
+    - service: rest_command.signal_notify
       data:
         message: >-
           🔥 Thermorossi — Alarm: {{ states('sensor.thermorossi_message_alarme') }}
@@ -37,7 +34,7 @@
       entity_id: binary_sensor.thermorossi_arret_erreur
       to: "on"
   action:
-    - service: rest_command.signal_stove
+    - service: rest_command.signal_notify
       data:
         message: >-
           🛑 Thermorossi — Stove stopped on error.
@@ -53,7 +50,7 @@
       entity_id: binary_sensor.thermorossi_pellets_insuffisants
       to: "on"
   action:
-    - service: rest_command.signal_stove
+    - service: rest_command.signal_notify
       data:
         message: "🪵 Thermorossi — Pellet reserve empty. Refill the hopper."
 
@@ -73,7 +70,7 @@
       entity_id: sensor.thermorossi_etat
       state: "start"
   action:
-    - service: rest_command.signal_stove
+    - service: rest_command.signal_notify
       data:
         message: "⚠️ Thermorossi — Ignition stuck for 25 min. Burner may need cleaning."
 
@@ -91,7 +88,7 @@
       value_template: >
         {{ trigger.to_state.state in ['off', 'stop'] }}
   action:
-    - service: rest_command.signal_stove
+    - service: rest_command.signal_notify
       data:
         message: >-
           ⚠️ Thermorossi — Stove stopped during heating ({{ trigger.to_state.state }}).
@@ -109,7 +106,7 @@
       entity_id: sensor.thermorossi_etat
       to: "work"
   action:
-    - service: rest_command.signal_stove
+    - service: rest_command.signal_notify
       data:
         message: >-
           ✅ Thermorossi — Heating. Power level {{ states('sensor.thermorossi_niveau_de_puissance') }}/5.
@@ -125,6 +122,6 @@
       to: "off"
       from: "on"
   action:
-    - service: rest_command.signal_stove
+    - service: rest_command.signal_notify
       data:
         message: "✅ Thermorossi — Alarm cleared. Stove ready."
