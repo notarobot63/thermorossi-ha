@@ -5,7 +5,8 @@ import logging
 from datetime import timedelta
 
 import aiohttp
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -68,13 +69,26 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
         registers = payload.get("registers", [])
         return {entry[0]: entry[1] for entry in registers}
 
+    def _schedule_fast_poll(self) -> None:
+        """Schedule rapid refreshes every 2s for 30s after a command."""
+        @callback
+        def _do_refresh(_now=None) -> None:
+            self.hass.async_create_task(self.async_request_refresh())
+
+        for delay in range(2, 32, 2):
+            async_call_later(self.hass, delay, _do_refresh)
+
     async def async_turn_on(self) -> bool:
         """Send the ON command."""
-        return await self._send_command(CMD_ON)
+        result = await self._send_command(CMD_ON)
+        self._schedule_fast_poll()
+        return result
 
     async def async_turn_off(self) -> bool:
         """Send the OFF command."""
-        return await self._send_command(CMD_OFF)
+        result = await self._send_command(CMD_OFF)
+        self._schedule_fast_poll()
+        return result
 
     async def _send_command(self, value: int) -> bool:
         return await self._send_command_reg(SET_REG_ID, value)
