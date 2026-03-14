@@ -1,0 +1,77 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connessione alla stufa Thermorossi",
+        "description": "Inserisci l'indirizzo IP della tua stufa Thermorossi.",
+        "data": {
+          "host": "Indirizzo IP"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile connettersi alla stufa. Verifica l'indirizzo IP.",
+      "invalid_response": "Risposta inattesa dalla stufa."
+    },
+    "abort": {
+      "already_configured": "Questa stufa è già configurata."
+    }
+  },
+  "entity": {
+    "switch": {
+      "stove": {
+        "name": "Stufa"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Stato",
+        "state": {
+          "off": "Spento",
+          "start": "Accensione",
+          "work": "Riscaldamento",
+          "wait_on": "In attesa",
+          "temp_ok": "Temp. OK",
+          "wait_time": "Attesa programmata",
+          "stop": "Arresto (errore)",
+          "sunout": "Arresto estivo",
+          "unknown": "Sconosciuto"
+        }
+      },
+      "set_temperature": {
+        "name": "Temperatura impostata"
+      },
+      "air_temperature": {
+        "name": "Temperatura ambiente"
+      },
+      "fire_level": {
+        "name": "Livello di potenza"
+      },
+      "fan_speed": {
+        "name": "Velocità ventilatore"
+      },
+      "alarm_message": {
+        "name": "Messaggio di allarme"
+      }
+    },
+    "binary_sensor": {
+      "error_stop": {
+        "name": "Arresto per errore"
+      },
+      "alarm": {
+        "name": "Allarme"
+      },
+      "pellets_low": {
+        "name": "Pellet insufficienti"
+      }
+    },
+    "number": {
+      "fire_level": {
+        "name": "Livello di potenza"
+      },
+      "fan_speed": {
+        "name": "Velocità ventilatore"
+      }
+    }
+  }
+}
