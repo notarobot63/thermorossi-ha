@@ -12,8 +12,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     ALARM_CODES,
     ERROR_STATE,
-    REG_ALARM_LSB,
-    REG_ALARM_MSB,
     REG_PELLET,
     REG_STATUS,
 )
@@ -32,12 +30,6 @@ async def async_setup_entry(
         ThermorossiAlarmSensor(coordinator, entry),
         ThermorossiPelletSensor(coordinator, entry),
     ])
-
-
-def _alarm_code(data: dict) -> int:
-    lsb = data.get(REG_ALARM_LSB, 0)
-    msb = data.get(REG_ALARM_MSB, 0)
-    return (msb << 16) | lsb
 
 
 class ThermorossiBaseBinarySensor(ThermorossiEntity, BinarySensorEntity):
@@ -74,15 +66,11 @@ class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
 
     @property
     def is_on(self) -> bool:
-        if self.coordinator.data is None:
-            return False
-        return _alarm_code(self.coordinator.data) != 0
+        return self.coordinator.alarm_code != 0
 
     @property
     def extra_state_attributes(self) -> dict:
-        if self.coordinator.data is None:
-            return {}
-        code = _alarm_code(self.coordinator.data)
+        code = self.coordinator.alarm_code
         active = [
             ALARM_CODES.get(bit, f"alarm_bit_{bit}")
             for bit in range(32)

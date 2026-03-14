@@ -17,8 +17,6 @@ from .const import (
     REG_AIR_TEMP,
     REG_FIRE_LEVEL,
     REG_FAN_SPEED,
-    REG_ALARM_LSB,
-    REG_ALARM_MSB,
     STATUS_CODES,
     ALARM_CODES,
     TEMP_MUL,
@@ -163,9 +161,7 @@ class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
     def native_value(self) -> str | None:
         if self.coordinator.data is None:
             return None
-        lsb = self.coordinator.data.get(REG_ALARM_LSB, 0)
-        msb = self.coordinator.data.get(REG_ALARM_MSB, 0)
-        code = (msb << 16) | lsb
+        code = self.coordinator.alarm_code
         if code == 0:
             return "ok"
         for bit in range(32):
