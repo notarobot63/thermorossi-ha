@@ -10,6 +10,7 @@
       }
     },
     "error": {
+      "invalid_host": "Invalid host or IP address.",
       "cannot_connect": "Unable to connect to the stove. Check the IP address.",
       "invalid_response": "Unexpected response from the stove."
     },
