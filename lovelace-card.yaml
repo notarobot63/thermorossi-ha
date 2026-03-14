@@ -9,9 +9,7 @@ cards:
     card_type: button
     entity: switch.thermorossi_poele
     name: Poêle Thermorossi
-    icon: >
-      {% set s = states('sensor.thermorossi_etat') %}
-      {% if s == 'Arrêt (erreur)' %}mdi:fire-alert{% elif s in ['Allumage', 'Chauffe', 'Temp. OK', 'En attente'] %}mdi:fire{% else %}mdi:fire-off{% endif %}
+    icon: mdi:fire
     show_state: false
     tap_action:
       action: toggle
