@@ -4,9 +4,8 @@
 type: vertical-stack
 cards:
 
-  # ── 1. Bouton principal : switch + état ────────────────────
+  # ── 1. État (informatif) ────────────────────────────────────
   - type: custom:mushroom-template-card
-    entity: switch.thermorossi_192_168_1_36_poele
     primary: Poêle Thermorossi
     secondary: "{{ states('sensor.thermorossi_192_168_1_36_etat') }}"
     icon: >
@@ -31,9 +30,7 @@ cards:
       {% endif %}
     badge_color: red
     tap_action:
-      action: toggle
-    hold_action:
-      action: more-info
+      action: none
     layout: horizontal
     card_mod:
       style: |
@@ -57,7 +54,23 @@ cards:
           {% endif %}
         }
 
-  # ── 2. Slider puissance ────────────────────────────────────
+  # ── 2. Switch ON/OFF ────────────────────────────────────────
+  - type: custom:mushroom-entity-card
+    entity: switch.thermorossi_192_168_1_36_poele
+    name: Allumer / Éteindre
+    icon: mdi:power
+    icon_color: >
+      {% if is_state('switch.thermorossi_192_168_1_36_poele', 'on') %} green
+      {% else %} grey
+      {% endif %}
+    tap_action:
+      action: toggle
+    layout: horizontal
+    card_mod:
+      style: |
+        ha-card { padding: 8px 16px; }
+
+  # ── 3. Slider puissance ────────────────────────────────────
   - type: custom:mushroom-number-card
     entity: number.thermorossi_192_168_1_36_niveau_de_puissance
     name: Puissance
@@ -69,24 +82,13 @@ cards:
       style: |
         ha-card { padding: 8px 16px; }
 
-  # ── 3. Slider ventilation ──────────────────────────────────
+  # ── 4. Slider ventilation ──────────────────────────────────
   - type: custom:mushroom-number-card
     entity: number.thermorossi_192_168_1_36_vitesse_ventilateur
     name: Ventilation
     icon: mdi:fan
     icon_color: blue
     display_mode: slider
-    layout: horizontal
-    card_mod:
-      style: |
-        ha-card { padding: 8px 16px; }
-
-  # ── 4. Consigne température ────────────────────────────────
-  - type: custom:mushroom-entity-card
-    entity: sensor.thermorossi_192_168_1_36_consigne_temperature
-    name: Consigne
-    icon: mdi:thermometer
-    icon_color: orange
     layout: horizontal
     card_mod:
       style: |
