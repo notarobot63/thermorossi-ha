@@ -1,0 +1,10 @@
+{
+  "domain": "thermorossi",
+  "name": "Thermorossi (WiNET)",
+  "version": "1.0.0",
+  "config_flow": true,
+  "documentation": "https://git.notarobot.xyz/Thomas/thermorossi-ha",
+  "requirements": ["aiohttp"],
+  "codeowners": ["@thomas"],
+  "iot_class": "local_polling"
+}

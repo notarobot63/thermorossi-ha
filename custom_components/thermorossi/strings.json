@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Thermorossi WiNET",
+        "description": "Entrez l'adresse IP de votre poêle Thermorossi.",
+        "data": {
+          "host": "Adresse IP"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter au poêle. Vérifiez l'adresse IP.",
+      "invalid_response": "Réponse inattendue du poêle."
+    },
+    "abort": {
+      "already_configured": "Ce poêle est déjà configuré."
+    }
+  }
+}
