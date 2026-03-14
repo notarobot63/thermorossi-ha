@@ -9,12 +9,9 @@ cards:
     card_type: button
     entity: switch.thermorossi_192_168_1_36_poele
     name: Poêle Thermorossi
-    icon: |
+    icon: >
       {% set s = states('sensor.thermorossi_192_168_1_36_etat') %}
-      {% if s == 'Arrêt (erreur)' %} mdi:fire-alert
-      {% elif s in ['Allumage', 'Chauffe', 'Temp. OK', 'En attente'] %} mdi:fire
-      {% else %} mdi:fire-off
-      {% endif %}
+      {% if s == 'Arrêt (erreur)' %}mdi:fire-alert{% elif s in ['Allumage', 'Chauffe', 'Temp. OK', 'En attente'] %}mdi:fire{% else %}mdi:fire-off{% endif %}
     show_state: false
     tap_action:
       action: toggle
@@ -38,12 +35,6 @@ cards:
         show_icon: true
         tap_action:
           action: more-info
-      - entity: binary_sensor.thermorossi_192_168_1_36_alarme
-        icon: mdi:alert-circle
-        show_state: false
-        show_icon: "{{ is_state('binary_sensor.thermorossi_192_168_1_36_alarme', 'on') or is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') or is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') }}"
-        tap_action:
-          action: none
     styles: |
       .bubble-icon {
         {% set s = states('sensor.thermorossi_192_168_1_36_etat') %}
