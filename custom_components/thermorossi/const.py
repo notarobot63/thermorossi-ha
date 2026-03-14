@@ -57,23 +57,23 @@ API_HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
 }
 
-# Alarm bit messages (from WiNET JS source)
-ALARM_MESSAGES = {
-    0:  "Pas de pellets / Nettoyer brûleur",
-    1:  "Démarrage échoué / Nettoyer brûleur",
-    2:  "Fumées non évacuées / Vérifier conduit",
-    3:  "Alarme température max",
-    4:  "Sonde température fumées déconnectée",
-    5:  "Capteur RPM extracteur fumées",
-    6:  "Alarme ventilateur fumées",
-    7:  "Alarme sismique",
-    8:  "Sonde S1 déconnectée",
-    9:  "Sonde S2 déconnectée",
-    10: "Sonde ACS déconnectée",
-    11: "Sonde STA déconnectée",
-    12: "Moteur nettoyage",
-    13: "Tiroir plein",
-    14: "Tiroir absent",
-    15: "Timeout LCD",
-    16: "Sonde STG déconnectée",
+# Alarm bit → translation key (from WiNET JS source)
+ALARM_CODES = {
+    0:  "no_pellets",
+    1:  "start_failed",
+    2:  "flue_gas_blocked",
+    3:  "max_temp",
+    4:  "flue_probe_disconnected",
+    5:  "exhaust_fan_rpm",
+    6:  "exhaust_fan_fault",
+    7:  "seismic",
+    8:  "probe_s1_disconnected",
+    9:  "probe_s2_disconnected",
+    10: "probe_acs_disconnected",
+    11: "probe_sta_disconnected",
+    12: "cleaning_motor",
+    13: "ash_drawer_full",
+    14: "ash_drawer_missing",
+    15: "lcd_timeout",
+    16: "probe_stg_disconnected",
 }

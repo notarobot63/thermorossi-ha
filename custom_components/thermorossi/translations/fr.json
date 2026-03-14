@@ -51,7 +51,28 @@
         "name": "Vitesse ventilateur"
       },
       "alarm_message": {
-        "name": "Message alarme"
+        "name": "Message alarme",
+        "state": {
+          "ok": "OK",
+          "no_pellets": "Pas de pellets / Nettoyer brûleur",
+          "start_failed": "Démarrage échoué / Nettoyer brûleur",
+          "flue_gas_blocked": "Fumées non évacuées / Vérifier conduit",
+          "max_temp": "Alarme température max",
+          "flue_probe_disconnected": "Sonde température fumées déconnectée",
+          "exhaust_fan_rpm": "Capteur RPM extracteur fumées",
+          "exhaust_fan_fault": "Alarme ventilateur fumées",
+          "seismic": "Alarme sismique",
+          "probe_s1_disconnected": "Sonde S1 déconnectée",
+          "probe_s2_disconnected": "Sonde S2 déconnectée",
+          "probe_acs_disconnected": "Sonde ACS déconnectée",
+          "probe_sta_disconnected": "Sonde STA déconnectée",
+          "cleaning_motor": "Défaut moteur nettoyage",
+          "ash_drawer_full": "Tiroir plein",
+          "ash_drawer_missing": "Tiroir absent",
+          "lcd_timeout": "Timeout LCD",
+          "probe_stg_disconnected": "Sonde STG déconnectée",
+          "unknown": "Alarme inconnue"
+        }
       }
     },
     "binary_sensor": {
