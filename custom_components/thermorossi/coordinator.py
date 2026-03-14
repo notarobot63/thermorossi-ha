@@ -67,12 +67,12 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
         return {entry[0]: entry[1] for entry in registers}
 
     def _schedule_fast_poll(self) -> None:
-        """Schedule rapid refreshes every 2s for 30s after a command."""
+        """Schedule rapid refreshes after a command: every 1s for 10s, then every 2s up to 30s."""
         @callback
         def _do_refresh(_now=None) -> None:
             self.hass.async_create_task(self.async_request_refresh())
 
-        for delay in range(2, 32, 2):
+        for delay in [*range(1, 11), *range(12, 32, 2)]:
             async_call_later(self.hass, delay, _do_refresh)
 
     async def async_turn_on(self) -> bool:
