@@ -1,143 +1,137 @@
-# Carte Thermorossi — Mushroom Cards + Card Mod
+# Carte Thermorossi — Bubble Card + Mushroom
 # Coller dans l'éditeur YAML du tableau de bord HA
+# Nécessite: Bubble Card, Mushroom Cards, Card Mod
 
 type: vertical-stack
 cards:
 
-  # ── 1. État (informatif) ────────────────────────────────────
-  - type: custom:mushroom-template-card
-    primary: Poêle Thermorossi
-    secondary: "{{ states('sensor.thermorossi_192_168_1_36_etat') }}"
-    icon: >
+  # ── 1. Carte principale compacte ───────────────────────────
+  - type: custom:bubble-card
+    card_type: button
+    entity: switch.thermorossi_192_168_1_36_poele
+    name: Poêle Thermorossi
+    icon: |
       {% set s = states('sensor.thermorossi_192_168_1_36_etat') %}
       {% if s == 'Arrêt (erreur)' %} mdi:fire-alert
       {% elif s in ['Allumage', 'Chauffe', 'Temp. OK', 'En attente'] %} mdi:fire
       {% else %} mdi:fire-off
       {% endif %}
-    icon_color: >
-      {% set s = states('sensor.thermorossi_192_168_1_36_etat') %}
-      {% if s == 'Arrêt (erreur)' %} red
-      {% elif s == 'Chauffe' %} deep-orange
-      {% elif s == 'Allumage' %} orange
-      {% elif s in ['Temp. OK', 'En attente'] %} amber
-      {% else %} blue-grey
-      {% endif %}
-    badge_icon: >
-      {% if is_state('binary_sensor.thermorossi_192_168_1_36_alarme', 'on') %}
-        mdi:alert
-      {% elif is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') %}
-        mdi:grain
-      {% endif %}
-    badge_color: red
-    tap_action:
-      action: none
-    layout: horizontal
-    card_mod:
-      style: |
-        ha-card {
-          padding: 12px 16px;
-          {% set s = states('sensor.thermorossi_192_168_1_36_etat') %}
-          {% if s == 'Chauffe' %}
-            background: linear-gradient(135deg,
-              rgba(230, 81, 0, 0.18) 0%,
-              rgba(255, 112, 67, 0.08) 100%);
-          {% elif s == 'Allumage' %}
-            background: linear-gradient(135deg,
-              rgba(251, 140, 0, 0.15) 0%,
-              rgba(255, 183, 77, 0.07) 100%);
-          {% elif s == 'Arrêt (erreur)' %}
-            background: linear-gradient(135deg,
-              rgba(211, 47, 47, 0.18) 0%,
-              rgba(229, 57, 53, 0.08) 100%);
-          {% else %}
-            background: none;
-          {% endif %}
-        }
-
-  # ── 2. Switch ON/OFF ────────────────────────────────────────
-  - type: custom:mushroom-entity-card
-    entity: switch.thermorossi_192_168_1_36_poele
-    name: Allumer / Éteindre
-    icon: mdi:power
-    icon_color: >
-      {% if is_state('switch.thermorossi_192_168_1_36_poele', 'on') %} green
-      {% else %} grey
-      {% endif %}
+    show_state: false
     tap_action:
       action: toggle
-    layout: horizontal
-    card_mod:
-      style: |
-        ha-card { padding: 8px 16px; }
-
-  # ── 3. Slider puissance ────────────────────────────────────
-  - type: custom:mushroom-number-card
-    entity: number.thermorossi_192_168_1_36_niveau_de_puissance
-    name: Puissance
-    icon: mdi:fire
-    icon_color: deep-orange
-    display_mode: slider
-    layout: horizontal
-    card_mod:
-      style: |
-        ha-card { padding: 8px 16px; }
-
-  # ── 4. Slider ventilation ──────────────────────────────────
-  - type: custom:mushroom-number-card
-    entity: number.thermorossi_192_168_1_36_vitesse_ventilateur
-    name: Ventilation
-    icon: mdi:fan
-    icon_color: blue
-    display_mode: slider
-    layout: horizontal
-    card_mod:
-      style: |
-        ha-card { padding: 8px 16px; }
-
-  # ── 5. Zone alarme (masquée si tout va bien) ───────────────
-  - type: conditional
-    conditions:
-      - condition: or
-        conditions:
-          - condition: state
-            entity: binary_sensor.thermorossi_192_168_1_36_alarme
-            state: "on"
-          - condition: state
-            entity: binary_sensor.thermorossi_192_168_1_36_arret_erreur
-            state: "on"
-          - condition: state
-            entity: binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants
-            state: "on"
-    card:
-      type: custom:mushroom-template-card
-      primary: >
-        {% if is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') %}
-          🛑 Poêle arrêté — {{ states('sensor.thermorossi_192_168_1_36_message_alarme') }}
-        {% elif is_state('binary_sensor.thermorossi_192_168_1_36_alarme', 'on') %}
-          ⚠️ {{ states('sensor.thermorossi_192_168_1_36_message_alarme') }}
-        {% elif is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') %}
-          ⚠️ Réserve pellets vide
-        {% endif %}
-      secondary: >
-        {% if is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') %}
-          Vérifier le brûleur ou les pellets avant de relancer
-        {% elif is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') %}
-          Recharger le bac à pellets
-        {% endif %}
-      icon: >
-        {% if is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') %}
-          mdi:fire-alert
+    hold_action:
+      action: navigate
+      navigation_path: "#thermorossi-reglages"
+    sub_button:
+      - entity: sensor.thermorossi_192_168_1_36_etat
+        show_state: true
+        show_icon: false
+        tap_action:
+          action: none
+      - entity: number.thermorossi_192_168_1_36_niveau_de_puissance
+        icon: mdi:fire
+        show_state: true
+        show_icon: true
+        tap_action:
+          action: none
+      - entity: number.thermorossi_192_168_1_36_vitesse_ventilateur
+        icon: mdi:fan
+        show_state: true
+        show_icon: true
+        tap_action:
+          action: none
+      - entity: binary_sensor.thermorossi_192_168_1_36_alarme
+        icon: mdi:alert-circle
+        show_icon: "{{ is_state('binary_sensor.thermorossi_192_168_1_36_alarme', 'on') or is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') or is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') }}"
+        show_state: false
+        tap_action:
+          action: none
+    styles: |
+      .bubble-icon {
+        {% set s = states('sensor.thermorossi_192_168_1_36_etat') %}
+        {% if s == 'Arrêt (erreur)' %}
+          color: rgb(211,47,47) !important;
+        {% elif s == 'Chauffe' %}
+          color: rgb(230,81,0) !important;
+        {% elif s == 'Allumage' %}
+          color: rgb(251,140,0) !important;
+        {% elif s in ['Temp. OK', 'En attente'] %}
+          color: rgb(255,193,7) !important;
         {% else %}
-          mdi:alert-circle
+          color: var(--secondary-text-color) !important;
         {% endif %}
-      icon_color: red
-      layout: horizontal
-      card_mod:
-        style: |
-          ha-card {
-            background: linear-gradient(135deg,
-              rgba(211, 47, 47, 0.15) 0%,
-              rgba(183, 28, 28, 0.08) 100%);
-            border: 1.5px solid rgba(211, 47, 47, 0.4);
-            padding: 8px 16px;
-          }
+      }
+
+  # ── 2. Pop-up réglages (déclenché par hold sur la carte) ────
+  - type: custom:bubble-card
+    card_type: pop-up
+    hash: "#thermorossi-reglages"
+    name: Réglages poêle
+    icon: mdi:fire-circle
+    cards:
+      - type: custom:mushroom-number-card
+        entity: number.thermorossi_192_168_1_36_niveau_de_puissance
+        name: Puissance
+        icon: mdi:fire
+        icon_color: deep-orange
+        display_mode: slider
+        layout: horizontal
+        card_mod:
+          style: |
+            ha-card { padding: 8px 16px; }
+      - type: custom:mushroom-number-card
+        entity: number.thermorossi_192_168_1_36_vitesse_ventilateur
+        name: Ventilation
+        icon: mdi:fan
+        icon_color: blue
+        display_mode: slider
+        layout: horizontal
+        card_mod:
+          style: |
+            ha-card { padding: 8px 16px; }
+      - type: conditional
+        conditions:
+          - condition: or
+            conditions:
+              - condition: state
+                entity: binary_sensor.thermorossi_192_168_1_36_alarme
+                state: "on"
+              - condition: state
+                entity: binary_sensor.thermorossi_192_168_1_36_arret_erreur
+                state: "on"
+              - condition: state
+                entity: binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants
+                state: "on"
+        card:
+          type: custom:mushroom-template-card
+          primary: >
+            {% if is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') %}
+              🛑 Poêle arrêté — {{ states('sensor.thermorossi_192_168_1_36_message_alarme') }}
+            {% elif is_state('binary_sensor.thermorossi_192_168_1_36_alarme', 'on') %}
+              ⚠️ {{ states('sensor.thermorossi_192_168_1_36_message_alarme') }}
+            {% elif is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') %}
+              ⚠️ Réserve pellets vide
+            {% endif %}
+          secondary: >
+            {% if is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') %}
+              Vérifier le brûleur ou les pellets avant de relancer
+            {% elif is_state('binary_sensor.thermorossi_192_168_1_36_pellets_insuffisants', 'on') %}
+              Recharger le bac à pellets
+            {% endif %}
+          icon: >
+            {% if is_state('binary_sensor.thermorossi_192_168_1_36_arret_erreur', 'on') %}
+              mdi:fire-alert
+            {% else %}
+              mdi:alert-circle
+            {% endif %}
+          icon_color: red
+          layout: horizontal
+          card_mod:
+            style: |
+              ha-card {
+                background: linear-gradient(135deg,
+                  rgba(211,47,47,0.15) 0%,
+                  rgba(183,28,28,0.08) 100%);
+                border: 1.5px solid rgba(211,47,47,0.4);
+                padding: 8px 16px;
+              }
