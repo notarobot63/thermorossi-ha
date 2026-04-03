@@ -33,6 +33,7 @@
           "work": "Chauffe",
           "wait_on": "En attente",
           "temp_ok": "Temp. OK",
+          "no_prog": "Sans programme",
           "wait_time": "Attente horaire",
           "stop": "Arrêt (erreur)",
           "sunout": "Arrêt estival",
@@ -50,6 +51,12 @@
       },
       "fan_speed": {
         "name": "Vitesse ventilateur"
+      },
+      "flue_temperature": {
+        "name": "Température fumées"
+      },
+      "rtc_clock": {
+        "name": "Horloge interne"
       },
       "alarm_message": {
         "name": "Message alarme",
@@ -85,6 +92,9 @@
       },
       "pellets_low": {
         "name": "Pellets insuffisants"
+      },
+      "chrono": {
+        "name": "Chrono actif"
       }
     },
     "number": {
