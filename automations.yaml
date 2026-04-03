@@ -22,7 +22,7 @@
     - service: rest_command.signal_notify
       data:
         message: >-
-          🔥 Thermorossi — Alarm: {{ states('sensor.thermorossi_message_alarme') }}
+          🔥 Thermorossi — Alarme : {% set code = states('sensor.thermorossi_message_alarme') %}{% set t = {'ok':'OK','no_pellets':'Pas de pellets / Nettoyer brûleur','start_failed':'Démarrage échoué / Nettoyer brûleur','flue_gas_blocked':'Fumées non évacuées / Vérifier conduit','max_temp':'Alarme température max','flue_probe_disconnected':'Sonde température fumées déconnectée','exhaust_fan_rpm':'Capteur RPM extracteur fumées','exhaust_fan_fault':'Alarme ventilateur fumées','seismic':'Alarme sismique','probe_s1_disconnected':'Sonde S1 déconnectée','probe_s2_disconnected':'Sonde S2 déconnectée','probe_acs_disconnected':'Sonde ACS déconnectée','probe_sta_disconnected':'Sonde STA déconnectée','cleaning_motor':'Défaut moteur nettoyage','ash_drawer_full':'Tiroir plein','ash_drawer_missing':'Tiroir absent','lcd_timeout':'Timeout LCD','probe_stg_disconnected':'Sonde STG déconnectée','unknown':'Alarme inconnue'} %}{{ t.get(code, code) }}
 
 # ─────────────────────────────────────────────────────────────────
 # 2. ERROR STOP (STOP state — reg[6]=8)
@@ -37,8 +37,8 @@
     - service: rest_command.signal_notify
       data:
         message: >-
-          🛑 Thermorossi — Stove stopped on error.
-          Alarm: {{ states('sensor.thermorossi_message_alarme') }}
+          🛑 Thermorossi — Poêle arrêté sur erreur.
+          Alarme : {% set code = states('sensor.thermorossi_message_alarme') %}{% set t = {'ok':'OK','no_pellets':'Pas de pellets / Nettoyer brûleur','start_failed':'Démarrage échoué / Nettoyer brûleur','flue_gas_blocked':'Fumées non évacuées / Vérifier conduit','max_temp':'Alarme température max','flue_probe_disconnected':'Sonde température fumées déconnectée','exhaust_fan_rpm':'Capteur RPM extracteur fumées','exhaust_fan_fault':'Alarme ventilateur fumées','seismic':'Alarme sismique','probe_s1_disconnected':'Sonde S1 déconnectée','probe_s2_disconnected':'Sonde S2 déconnectée','probe_acs_disconnected':'Sonde ACS déconnectée','probe_sta_disconnected':'Sonde STA déconnectée','cleaning_motor':'Défaut moteur nettoyage','ash_drawer_full':'Tiroir plein','ash_drawer_missing':'Tiroir absent','lcd_timeout':'Timeout LCD','probe_stg_disconnected':'Sonde STG déconnectée','unknown':'Alarme inconnue'} %}{{ t.get(code, code) }}
 
 # ─────────────────────────────────────────────────────────────────
 # 3. PELLETS LOW
@@ -52,76 +52,20 @@
   action:
     - service: rest_command.signal_notify
       data:
-        message: "🪵 Thermorossi — Pellet reserve empty. Refill the hopper."
+        message: "🪵 Thermorossi — Réserve de pellets vide. Remplissez le bac."
 
 # ─────────────────────────────────────────────────────────────────
-# 4. STUCK IGNITION — clogged burner (START for 25 min)
+# 4. STUCK IGNITION — clogged burner (START → STOP without reaching work)
 # ─────────────────────────────────────────────────────────────────
 - alias: "Thermorossi - Stuck ignition"
   id: thermorossi_stuck_start
   trigger:
     - platform: state
       entity_id: sensor.thermorossi_etat
-      to: "start"
-      for:
-        minutes: 25
-  condition:
-    - condition: state
-      entity_id: sensor.thermorossi_etat
-      state: "start"
+      from: "start"
+      to: "stop"
   action:
     - service: rest_command.signal_notify
       data:
-        message: "⚠️ Thermorossi — Ignition stuck for 25 min. Burner may need cleaning."
+        message: "⚠️ Thermorossi — Allumage échoué. Le brûleur doit être nettoyé."
 
-# ─────────────────────────────────────────────────────────────────
-# 5. UNEXPECTED SHUTDOWN DURING HEATING
-# ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Unexpected shutdown"
-  id: thermorossi_unexpected_stop
-  trigger:
-    - platform: state
-      entity_id: sensor.thermorossi_etat
-      from: "work"
-  condition:
-    - condition: template
-      value_template: >
-        {{ trigger.to_state.state in ['off', 'stop'] }}
-  action:
-    - service: rest_command.signal_notify
-      data:
-        message: >-
-          ⚠️ Thermorossi — Stove stopped during heating ({{ trigger.to_state.state }}).
-          {% if states('binary_sensor.thermorossi_pellets_insuffisants') == 'on' %}Pellets exhausted.
-          {% elif states('binary_sensor.thermorossi_alarme') == 'on' %}Alarm: {{ states('sensor.thermorossi_message_alarme') }}
-          {% else %}Check stove status.{% endif %}
-
-# ─────────────────────────────────────────────────────────────────
-# 6. HEATING STARTED (optional — confirms successful ignition)
-# ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Heating started"
-  id: thermorossi_work_started
-  trigger:
-    - platform: state
-      entity_id: sensor.thermorossi_etat
-      to: "work"
-  action:
-    - service: rest_command.signal_notify
-      data:
-        message: >-
-          ✅ Thermorossi — Heating. Power level {{ states('sensor.thermorossi_niveau_de_puissance') }}/5.
-
-# ─────────────────────────────────────────────────────────────────
-# 7. ALARM CLEARED
-# ─────────────────────────────────────────────────────────────────
-- alias: "Thermorossi - Alarm cleared"
-  id: thermorossi_alarm_cleared
-  trigger:
-    - platform: state
-      entity_id: binary_sensor.thermorossi_alarme
-      to: "off"
-      from: "on"
-  action:
-    - service: rest_command.signal_notify
-      data:
-        message: "✅ Thermorossi — Alarm cleared. Stove ready."

@@ -23,6 +23,9 @@ REG_AIR_TEMP = 16    # Measured ambient temp (room control module): value * 0.25
 REG_FIRE_LEVEL = 12  # Power level 0–5 (0x0C)
 REG_FAN_SPEED = 13   # Fan speed 1–6 (0x0D)
 REG_PELLET = 10      # Pellet reserve: 0=OK, other=low/empty
+REG_FLAGS = 7        # Flags register: bit0=chrono active, bit6=room control, bit7=eco mode
+REG_FLUE_TEMP = 21   # Flue gas temperature (raw °C, direct value)
+REG_RTC = 22         # Internal RTC clock: bits[13:11]=day(1-7), bits[10:6]=hour, bits[5:0]=minute
 
 # Temperature conversion: rawValue * TEMP_MUL + TEMP_OFFSET
 TEMP_MUL = 0.25
@@ -36,6 +39,7 @@ STATUS_CODES = {
     3: "work",
     4: "wait_on",
     5: "temp_ok",
+    6: "no_prog",    # On but no schedule programmed ("NO PROGR.")
     7: "wait_time",
     8: "stop",       # Error / fault state
     9: "sunout",

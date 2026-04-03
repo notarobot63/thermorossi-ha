@@ -17,6 +17,8 @@ from .const import (
     REG_AIR_TEMP,
     REG_FIRE_LEVEL,
     REG_FAN_SPEED,
+    REG_FLUE_TEMP,
+    REG_RTC,
     STATUS_CODES,
     ALARM_CODES,
     TEMP_MUL,
@@ -36,9 +38,11 @@ async def async_setup_entry(
         ThermorossiStatusSensor(coordinator, entry),
         ThermorossiSetTempSensor(coordinator, entry),
         ThermorossiAirTempSensor(coordinator, entry),
+        ThermorossiFlueTempSensor(coordinator, entry),
         ThermorossiFireLevelSensor(coordinator, entry),
         ThermorossiFanSpeedSensor(coordinator, entry),
         ThermorossiAlarmMessageSensor(coordinator, entry),
+        ThermorossiRtcSensor(coordinator, entry),
     ])
 
 
@@ -168,6 +172,57 @@ class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
             if code & (1 << bit):
                 return ALARM_CODES.get(bit, "unknown")
         return "ok"
+
+
+class ThermorossiFlueTempSensor(ThermorossiBaseSensor):
+    """Flue gas temperature (reg[21], direct °C value)."""
+    _attr_translation_key = "flue_temperature"
+    _attr_name = "Température fumées"
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_icon = "mdi:thermometer-chevron-up"
+
+    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_flue_temp"
+
+    @property
+    def available(self) -> bool:
+        raw = coordinator_get(self.coordinator, REG_FLUE_TEMP)
+        return raw is not None and raw != 0
+
+    @property
+    def native_value(self) -> int | None:
+        raw = coordinator_get(self.coordinator, REG_FLUE_TEMP)
+        if raw is None or raw == 0:
+            return None
+        return raw
+
+
+_RTC_DAYS = ["", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+
+
+class ThermorossiRtcSensor(ThermorossiBaseSensor):
+    """Internal RTC clock (reg[22]): day bits[13:11], hour bits[10:6], minute bits[5:0]."""
+    _attr_translation_key = "rtc_clock"
+    _attr_name = "Horloge interne"
+    _attr_icon = "mdi:clock-outline"
+
+    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_rtc"
+
+    @property
+    def native_value(self) -> str | None:
+        raw = coordinator_get(self.coordinator, REG_RTC)
+        if raw is None:
+            return None
+        day = (raw >> 11) & 0x7
+        hour = (raw >> 6) & 0x1F
+        minute = raw & 0x3F
+        day_label = _RTC_DAYS[day] if 1 <= day <= 7 else "?"
+        return f"{day_label} {hour:02d}:{minute:02d}"
 
 
 def coordinator_get(coordinator: ThermorossiCoordinator, index: int) -> int | None:

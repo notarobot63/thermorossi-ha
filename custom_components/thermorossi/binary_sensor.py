@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     ALARM_CODES,
     ERROR_STATE,
+    REG_FLAGS,
     REG_PELLET,
     REG_STATUS,
 )
@@ -29,6 +30,7 @@ async def async_setup_entry(
         ThermorossiErrorSensor(coordinator, entry),
         ThermorossiAlarmSensor(coordinator, entry),
         ThermorossiPelletSensor(coordinator, entry),
+        ThermorossiChronoSensor(coordinator, entry),
     ])
 
 
@@ -95,3 +97,20 @@ class ThermorossiPelletSensor(ThermorossiBaseBinarySensor):
         if self.coordinator.data is None:
             return False
         return self.coordinator.data.get(REG_PELLET, 0) != 0
+
+
+class ThermorossiChronoSensor(ThermorossiBaseBinarySensor):
+    """Active when the chronothermostat schedule is enabled (reg[7] bit 0)."""
+    _attr_translation_key = "chrono"
+    _attr_name = "Chrono actif"
+    _attr_icon = "mdi:calendar-clock"
+
+    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_chrono"
+
+    @property
+    def is_on(self) -> bool:
+        if self.coordinator.data is None:
+            return False
+        return bool(self.coordinator.data.get(REG_FLAGS, 0) & 0x1)
