@@ -78,7 +78,7 @@ No cloud. No account. Direct HTTP communication on your local network.
 
 1. Go to **Settings → Devices & Services → Add Integration**
 2. Search for **Thermorossi**
-3. Enter your stove's IP address (e.g. `192.168.1.36`)
+3. Enter your stove's IP address (e.g. `192.168.1.100`)
 
 The integration will verify connectivity before saving. If it fails, check that the stove is powered on and reachable on your network.
 

@@ -246,7 +246,7 @@ Body: dhcpEnabled=true|false&staticIp=x.x.x.x&staticMask=x.x.x.x&staticGw=x.x.x.
 ```python
 import urllib.request, json
 
-url = "http://192.168.1.36/ajax/get-registers"
+url = "http://192.168.1.100/ajax/get-registers"
 data = b"key=020&category=1"
 headers = {
     "Content-Type": "application/x-www-form-urlencoded",
