@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import timedelta
 
 import aiohttp
@@ -13,6 +14,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
     DOMAIN,
     DEFAULT_SCAN_INTERVAL,
+    FAST_POLL_DELAYS,
     API_GET_REGISTERS,
     API_SET_REGISTER,
     API_HEADERS,
@@ -24,16 +26,18 @@ from .const import (
     REG_ALARM_LSB,
     REG_ALARM_MSB,
 )
+from .parsing import compute_alarm_code, parse_registers
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
+class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
     """Polls the Thermorossi WiNET API and exposes register data."""
 
     def __init__(self, hass: HomeAssistant, host: str) -> None:
         self.host = host
         self._base_url = f"http://{host}"
+        self._fast_poll_cancels: list[Callable[[], None]] = []
         super().__init__(
             hass,
             _LOGGER,
@@ -46,7 +50,9 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
         """Return the 32-bit alarm code (0 = no alarm)."""
         if self.data is None:
             return 0
-        return (self.data.get(REG_ALARM_MSB, 0) << 16) | self.data.get(REG_ALARM_LSB, 0)
+        return compute_alarm_code(
+            self.data.get(REG_ALARM_MSB, 0), self.data.get(REG_ALARM_LSB, 0)
+        )
 
     async def _async_update_data(self) -> dict[int, int]:
         """Fetch registers from the stove."""
@@ -63,20 +69,35 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
                 payload = await resp.json(content_type=None)
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Connection error to stove ({self.host}): {err}") from err
-        except Exception as err:
-            raise UpdateFailed(f"Unexpected error: {err}") from err
+        except ValueError as err:
+            raise UpdateFailed(f"Invalid response from stove ({self.host}): {err}") from err
 
-        registers = payload.get("registers", [])
-        return {entry[0]: entry[1] for entry in registers}
+        try:
+            return parse_registers(payload)
+        except ValueError as err:
+            raise UpdateFailed(f"Invalid register data from stove ({self.host}): {err}") from err
 
     def _schedule_fast_poll(self) -> None:
         """Schedule rapid refreshes after a command: every 1s for 10s, then every 2s up to 30s."""
+        self._cancel_fast_poll()
+
         @callback
         def _do_refresh(_now=None) -> None:
             self.hass.async_create_task(self.async_request_refresh())
 
-        for delay in [*range(1, 11), *range(12, 32, 2)]:
-            async_call_later(self.hass, delay, _do_refresh)
+        for delay in FAST_POLL_DELAYS:
+            self._fast_poll_cancels.append(async_call_later(self.hass, delay, _do_refresh))
+
+    def _cancel_fast_poll(self) -> None:
+        """Cancel any pending fast-poll callbacks."""
+        for cancel in self._fast_poll_cancels:
+            cancel()
+        self._fast_poll_cancels.clear()
+
+    async def async_shutdown(self) -> None:
+        """Cancel pending fast-poll callbacks on unload, then run normal shutdown."""
+        self._cancel_fast_poll()
+        await super().async_shutdown()
 
     async def async_turn_on(self) -> bool:
         """Send the ON command."""
@@ -89,6 +110,10 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
         result = await self._send_command(CMD_OFF)
         self._schedule_fast_poll()
         return result
+
+    async def async_set_register(self, reg_id: int, value: int) -> bool:
+        """Public API to write an arbitrary register (used by number entities)."""
+        return await self._send_command_reg(reg_id, value)
 
     async def _send_command(self, value: int) -> bool:
         return await self._send_command_reg(SET_REG_ID, value)
@@ -106,7 +131,7 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict]):
             ) as resp:
                 resp.raise_for_status()
                 result = await resp.json(content_type=None)
-                return result.get("result", False) is True
-        except Exception as err:
+        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
             _LOGGER.error("Error sending command to stove: %s", err)
             return False
+        return isinstance(result, dict) and result.get("result") is True
