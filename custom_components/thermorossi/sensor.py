@@ -52,7 +52,6 @@ class ThermorossiBaseSensor(ThermorossiEntity, SensorEntity):
 
 class ThermorossiStatusSensor(ThermorossiBaseSensor):
     _attr_translation_key = "status"
-    _attr_name = "État"
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
@@ -80,7 +79,6 @@ class ThermorossiStatusSensor(ThermorossiBaseSensor):
 
 class ThermorossiSetTempSensor(ThermorossiBaseSensor):
     _attr_translation_key = "set_temperature"
-    _attr_name = "Consigne température"
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
@@ -99,7 +97,6 @@ class ThermorossiSetTempSensor(ThermorossiBaseSensor):
 
 class ThermorossiAirTempSensor(ThermorossiBaseSensor):
     _attr_translation_key = "air_temperature"
-    _attr_name = "Température ambiante"
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
@@ -123,7 +120,6 @@ class ThermorossiAirTempSensor(ThermorossiBaseSensor):
 
 class ThermorossiFireLevelSensor(ThermorossiBaseSensor):
     _attr_translation_key = "fire_level"
-    _attr_name = "Niveau de puissance"
     _attr_icon = "mdi:speedometer"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
@@ -138,7 +134,6 @@ class ThermorossiFireLevelSensor(ThermorossiBaseSensor):
 
 class ThermorossiFanSpeedSensor(ThermorossiBaseSensor):
     _attr_translation_key = "fan_speed"
-    _attr_name = "Vitesse ventilateur"
     _attr_icon = "mdi:fan"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
@@ -154,7 +149,6 @@ class ThermorossiFanSpeedSensor(ThermorossiBaseSensor):
 class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
     """Shows the first active alarm message, or 'OK' when no alarm."""
     _attr_translation_key = "alarm_message"
-    _attr_name = "Message alarme"
     _attr_icon = "mdi:alert-circle"
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
@@ -177,7 +171,6 @@ class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
 class ThermorossiFlueTempSensor(ThermorossiBaseSensor):
     """Flue gas temperature (reg[21], direct °C value)."""
     _attr_translation_key = "flue_temperature"
-    _attr_name = "Température fumées"
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
@@ -206,7 +199,6 @@ _RTC_DAYS = ["", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
 class ThermorossiRtcSensor(ThermorossiBaseSensor):
     """Internal RTC clock (reg[22]): day bits[13:11], hour bits[10:6], minute bits[5:0]."""
     _attr_translation_key = "rtc_clock"
-    _attr_name = "Horloge interne"
     _attr_icon = "mdi:clock-outline"
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:

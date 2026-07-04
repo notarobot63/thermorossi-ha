@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import REG_FIRE_LEVEL, REG_FAN_SPEED
+from .const import ERROR_STATE, REG_FAN_SPEED, REG_FIRE_LEVEL, REG_STATUS
 from .coordinator import ThermorossiCoordinator
 from .entity import ThermorossiEntity
 
@@ -26,10 +26,17 @@ async def async_setup_entry(
 class ThermorossiBaseNumber(ThermorossiEntity, NumberEntity):
     _attr_mode = NumberMode.SLIDER
 
+    @property
+    def available(self) -> bool:
+        if not super().available or self.coordinator.data is None:
+            return False
+        # Disable slider when stove is in error state, same as the switch
+        raw = self.coordinator.data.get(REG_STATUS, 1)
+        return (raw & 0xFF) != ERROR_STATE
+
 
 class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
     _attr_translation_key = "fire_level"
-    _attr_name = "Niveau de puissance"
     _attr_icon = "mdi:fire"
     _attr_native_min_value = 1
     _attr_native_max_value = 5
@@ -53,7 +60,6 @@ class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
 
 class ThermorossiFanSpeedNumber(ThermorossiBaseNumber):
     _attr_translation_key = "fan_speed"
-    _attr_name = "Vitesse ventilateur"
     _attr_icon = "mdi:fan"
     _attr_native_min_value = 1
     _attr_native_max_value = 6

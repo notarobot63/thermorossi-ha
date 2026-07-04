@@ -100,19 +100,16 @@ Two ready-to-use card configurations are included:
 
 ## Automations
 
-`automations.yaml` contains 7 example automations:
+`automations.yaml` contains 4 example automations:
 
 | # | Trigger | Description |
 |---|---------|-------------|
 | 1 | Any alarm bit set | General alarm notification |
 | 2 | Error stop (STOP state) | Stove fault notification |
 | 3 | Pellets low sensor | Refill reminder |
-| 4 | Stuck in `start` for 25 min | Clogged burner warning |
-| 5 | Unexpected shutdown during heating | Pellets exhausted / fault detection |
-| 6 | Transition to `work` | Ignition success confirmation |
-| 7 | All alarms cleared | Recovery notification |
+| 4 | `start` → `stop` transition | Stuck/clogged ignition warning |
 
-> Notifications use `notify.ntfy` by default — adapt to your setup (`notify.mobile_app_*`, `notify.signal`, etc.).
+> Notifications use `rest_command.signal_notify` (Signal via SignalMe) by default — adapt to your setup (`notify.mobile_app_*`, `notify.ntfy`, etc.). See the header comment in `automations.yaml` for the required `rest_command` config.
 
 ---
 

@@ -41,7 +41,6 @@ class ThermorossiBaseBinarySensor(ThermorossiEntity, BinarySensorEntity):
 class ThermorossiErrorSensor(ThermorossiBaseBinarySensor):
     """Active when the stove is in STOP error state (reg[6]==8)."""
     _attr_translation_key = "error_stop"
-    _attr_name = "Arrêt erreur"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
@@ -59,7 +58,6 @@ class ThermorossiErrorSensor(ThermorossiBaseBinarySensor):
 class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
     """Active when any alarm bit is set in the 32-bit alarm code (reg[8]+reg[9])."""
     _attr_translation_key = "alarm"
-    _attr_name = "Alarme"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
@@ -84,7 +82,6 @@ class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
 class ThermorossiPelletSensor(ThermorossiBaseBinarySensor):
     """Active when the pellet reserve sensor reports empty (reg[10] != 0)."""
     _attr_translation_key = "pellets_low"
-    _attr_name = "Pellets insuffisants"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:grain"
 
@@ -102,7 +99,6 @@ class ThermorossiPelletSensor(ThermorossiBaseBinarySensor):
 class ThermorossiChronoSensor(ThermorossiBaseBinarySensor):
     """Active when the chronothermostat schedule is enabled (reg[7] bit 0)."""
     _attr_translation_key = "chrono"
-    _attr_name = "Chrono actif"
     _attr_icon = "mdi:calendar-clock"
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
