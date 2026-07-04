@@ -51,6 +51,12 @@
       "fan_speed": {
         "name": "Fan speed"
       },
+      "flue_temperature": {
+        "name": "Flue temperature"
+      },
+      "rtc_clock": {
+        "name": "Internal clock"
+      },
       "alarm_message": {
         "name": "Alarm message",
         "state": {
@@ -85,6 +91,9 @@
       },
       "pellets_low": {
         "name": "Pellets low"
+      },
+      "chrono": {
+        "name": "Chrono active"
       }
     },
     "number": {

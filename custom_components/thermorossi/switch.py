@@ -22,7 +22,6 @@ async def async_setup_entry(
 
 class ThermorossiSwitch(ThermorossiEntity, SwitchEntity):
     _attr_translation_key = "stove"
-    _attr_name = "Poêle"
     _attr_icon = "mdi:fire"
 
     def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
