@@ -74,10 +74,11 @@ class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
             ) as resp:
                 resp.raise_for_status()
                 data = await resp.json(content_type=None)
-                if "registers" not in data:
-                    return "invalid_response"
-        except aiohttp.ClientConnectorError:
+        except (aiohttp.ClientError, TimeoutError):
             return "cannot_connect"
-        except Exception:
-            return "cannot_connect"
+        except ValueError:
+            return "invalid_response"
+
+        if not isinstance(data, dict) or "registers" not in data:
+            return "invalid_response"
         return None

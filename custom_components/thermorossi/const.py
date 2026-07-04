@@ -3,6 +3,9 @@
 DOMAIN = "thermorossi"
 DEFAULT_SCAN_INTERVAL = 30
 
+# Fast-poll schedule after a command: every 1s for 10s, then every 2s up to 30s
+FAST_POLL_DELAYS = [*range(1, 11), *range(12, 32, 2)]
+
 # API endpoints
 API_GET_REGISTERS = "/ajax/get-registers"
 API_SET_REGISTER = "/ajax/set-register"

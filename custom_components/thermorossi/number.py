@@ -47,7 +47,7 @@ class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
         return float(val) if val > 0 else 1.0
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator._send_command_reg(REG_FIRE_LEVEL, int(value))
+        await self.coordinator.async_set_register(REG_FIRE_LEVEL, int(value))
         await self.coordinator.async_request_refresh()
 
 
@@ -70,5 +70,5 @@ class ThermorossiFanSpeedNumber(ThermorossiBaseNumber):
         return float(self.coordinator.data.get(REG_FAN_SPEED, 1))
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator._send_command_reg(REG_FAN_SPEED, int(value))
+        await self.coordinator.async_set_register(REG_FAN_SPEED, int(value))
         await self.coordinator.async_request_refresh()
