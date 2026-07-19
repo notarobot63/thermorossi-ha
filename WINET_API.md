@@ -196,7 +196,7 @@ Le module expose 3 niveaux d'accès PIN, protégeant des sections de l'interface
 | 2 | Factory | Tests I/O, réglages usine (reg 256+) |
 | 3 | Debug | Browser Modbus brut (reg 0–898) |
 
-**PIN confirmé :** `1230` → type=1 (tech support)
+**PIN confirmé :** valeur retirée de ce document public (firmware partagé entre poêles, un PIN divulgué ici serait valide ailleurs). Type=1 (tech support) a un PIN valide sur 4 chiffres, gardé en note privée.
 
 Les types 2 et 3 n'ont pas de PIN valide dans la plage 0000–9999 (brute force exhaustif).
 Le PIN est comparé de façon **exacte sur 4 caractères** (ni préfixe, ni suffixe).

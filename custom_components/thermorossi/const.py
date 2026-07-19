@@ -49,7 +49,7 @@ STATUS_CODES = {
 }
 
 # States considered "on" (stove is active/heating)
-ACTIVE_STATES = {2, 3, 4, 5}
+ACTIVE_STATES = {2, 3, 4, 5, 6}
 
 # Error state
 ERROR_STATE = 8

@@ -41,6 +41,26 @@ class ParseRegistersTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parsing.parse_registers({"registers": [[0]]})  # missing value
 
+    def test_rejects_dict_shaped_entry(self) -> None:
+        with self.assertRaises(ValueError):
+            parsing.parse_registers({"registers": [{"id": 0, "value": 10}]})
+
+    def test_rejects_non_numeric_value(self) -> None:
+        with self.assertRaises(ValueError):
+            parsing.parse_registers({"registers": [[0, "not-a-number"]]})
+
+    def test_rejects_boolean_value(self) -> None:
+        with self.assertRaises(ValueError):
+            parsing.parse_registers({"registers": [[0, True]]})
+
+    def test_rejects_non_numeric_register_id(self) -> None:
+        with self.assertRaises(ValueError):
+            parsing.parse_registers({"registers": [["0", 10]]})
+
+    def test_rejects_boolean_register_id(self) -> None:
+        with self.assertRaises(ValueError):
+            parsing.parse_registers({"registers": [[True, 10]]})
+
 
 class ComputeAlarmCodeTests(unittest.TestCase):
     def test_combines_msb_and_lsb(self) -> None:

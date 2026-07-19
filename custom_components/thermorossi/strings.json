@@ -33,6 +33,7 @@
           "work": "Heating",
           "wait_on": "Standby",
           "temp_ok": "Temperature OK",
+          "no_prog": "No schedule",
           "wait_time": "Scheduled standby",
           "stop": "Error stop",
           "sunout": "Summer shutdown",

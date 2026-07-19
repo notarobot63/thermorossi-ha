@@ -21,4 +21,5 @@ class ThermorossiEntity(CoordinatorEntity[ThermorossiCoordinator]):
             name="Thermorossi",
             manufacturer="Thermorossi",
             model="WiNET",
+            configuration_url=f"http://{entry.data['host']}/management.html",
         )

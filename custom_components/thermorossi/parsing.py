@@ -19,9 +19,17 @@ def parse_registers(payload: object) -> dict[int, int]:
         raise ValueError("missing or invalid 'registers' list in payload")
 
     try:
-        return {entry[0]: entry[1] for entry in registers}
-    except (IndexError, TypeError) as err:
+        result = {entry[0]: entry[1] for entry in registers}
+    except (IndexError, TypeError, KeyError) as err:
         raise ValueError(f"malformed register entry: {err}") from err
+
+    for reg_id, value in result.items():
+        if not isinstance(reg_id, int) or isinstance(reg_id, bool):
+            raise ValueError(f"non-numeric register id: {reg_id!r}")
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(f"non-numeric value for register {reg_id}: {value!r}")
+
+    return result
 
 
 def compute_alarm_code(msb: int, lsb: int) -> int:
