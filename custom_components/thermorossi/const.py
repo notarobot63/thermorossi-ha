@@ -13,7 +13,7 @@ API_SET_REGISTER = "/ajax/set-register"
 # get-registers payload
 GET_PAYLOAD = "key=020&category=1"
 
-# set-register command values (0x5A00 = ON, 0xA500 = OFF — bitwise complements)
+# set-register command values (0x5A00 = ON, 0xA500 = OFF - bitwise complements)
 CMD_ON = 23040   # 0x5A00
 CMD_OFF = 42240  # 0xA500
 SET_KEY = "002"

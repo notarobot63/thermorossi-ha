@@ -1,4 +1,4 @@
-# Thermorossi WiNET — Documentation technique API
+# Thermorossi WiNET - Documentation technique API
 
 Résultat d'une session de rétro-ingénierie du module WiFi WiNET embarqué sur les poêles à
 pellets Thermorossi. L'analyse repose sur l'inspection du trafic HTTP et du code JavaScript
@@ -15,7 +15,7 @@ servi par le module (`/js/management.js`, `/js/networks.js`, `/js/dhcp.js`).
 - **Firmware testé** : 0.73
 
 Le module est un **proxy mince** : il lit les registres Modbus du board principal et les expose
-via HTTP. Il ne stocke pas lui-même les valeurs — elles viennent du poêle.
+via HTTP. Il ne stocke pas lui-même les valeurs - elles viennent du poêle.
 
 ---
 
@@ -113,7 +113,7 @@ connexion authentifiée affecte tous les clients simultanés.
 
 | Index | Nom | Format | Notes |
 |-------|-----|--------|-------|
-| 0 | — | — | |
+| 0 | - | - | |
 | 1 | Commande | word | Écriture : 0x5A00=ON, 0xA500=OFF |
 | 3 | Flags modèle | flags | bit2=Air ARM, bit13=WiFi, bit6=room control |
 | 6 | État | `& 0xFF` | Voir codes état ci-dessous |

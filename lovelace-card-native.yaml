@@ -1,4 +1,4 @@
-# Thermorossi card — 100% native HA (tile cards)
+# Thermorossi card - 100% native HA (tile cards)
 # No custom cards required
 
 type: vertical-stack
@@ -54,7 +54,7 @@ cards:
       entity: binary_sensor.thermorossi_arret_erreur
       name: >
         {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
-          Stove stopped — {{ states('sensor.thermorossi_message_alarme') }}
+          Stove stopped - {{ states('sensor.thermorossi_message_alarme') }}
         {% elif is_state('binary_sensor.thermorossi_alarme', 'on') %}
           {{ states('sensor.thermorossi_message_alarme') }}
         {% else %}
