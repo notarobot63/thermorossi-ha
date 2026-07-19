@@ -1,4 +1,4 @@
-# Thermorossi card — Bubble Card + Mushroom
+# Thermorossi card - Bubble Card + Mushroom
 # Requires: Bubble Card, Mushroom Cards, Card Mod
 
 type: vertical-stack
@@ -67,7 +67,7 @@ cards:
       type: custom:mushroom-template-card
       primary: >
         {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
-          🛑 Stove stopped — {{ states('sensor.thermorossi_message_alarme') }}
+          🛑 Stove stopped - {{ states('sensor.thermorossi_message_alarme') }}
         {% elif is_state('binary_sensor.thermorossi_alarme', 'on') %}
           ⚠️ {{ states('sensor.thermorossi_message_alarme') }}
         {% elif is_state('binary_sensor.thermorossi_pellets_insuffisants', 'on') %}

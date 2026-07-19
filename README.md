@@ -1,4 +1,4 @@
-# Thermorossi WiNET — Home Assistant Integration
+# Thermorossi WiNET - Home Assistant Integration
 
 > **🤖 Vibe Coded with Claude**
 > This project was built through an AI-assisted development session with [Claude](https://claude.ai) (Anthropic).
@@ -45,7 +45,7 @@ No cloud. No account. Direct HTTP communication on your local network.
 | `wait_on` | Waiting for conditions |
 | `temp_ok` | Target temperature reached |
 | `wait_time` | Scheduled standby (timer) |
-| `stop` | ⚠️ Error stop — check burner or pellets |
+| `stop` | ⚠️ Error stop - check burner or pellets |
 | `sunout` | Summer shutdown |
 
 ---
@@ -90,11 +90,11 @@ Two ready-to-use card configurations are included:
 
 ### Bubble Card (requires [Bubble Card](https://github.com/Clooos/Bubble-Card))
 
-`lovelace-card.yaml` — Compact card with state sub-buttons and conditional alarm banner.
+`lovelace-card.yaml` - Compact card with state sub-buttons and conditional alarm banner.
 
 ### Native HA tiles (no custom cards required)
 
-`lovelace-card-native.yaml` — 100% native HA tile cards, works without any HACS frontend dependency.
+`lovelace-card-native.yaml` - 100% native HA tile cards, works without any HACS frontend dependency.
 
 ---
 
@@ -109,16 +109,16 @@ Two ready-to-use card configurations are included:
 | 3 | Pellets low sensor | Refill reminder |
 | 4 | `start` → `stop` transition | Stuck/clogged ignition warning |
 
-> Notifications use `rest_command.signal_notify` (Signal via SignalMe) by default — adapt to your setup (`notify.mobile_app_*`, `notify.ntfy`, etc.). See the header comment in `automations.yaml` for the required `rest_command` config.
+> Notifications use `rest_command.signal_notify` (Signal via SignalMe) by default - adapt to your setup (`notify.mobile_app_*`, `notify.ntfy`, etc.). See the header comment in `automations.yaml` for the required `rest_command` config.
 
 ---
 
 ## Protocol
 
-- **Transport**: HTTP (local network only, no TLS — WiNET firmware limitation)
+- **Transport**: HTTP (local network only, no TLS - WiNET firmware limitation)
 - **Polling interval**: 30 seconds (background), 1 s × 10 + 2 s × 10 after commands
 - **API**: `POST /ajax/get-registers` and `POST /ajax/set-register`
-- **ON/OFF values**: `23040` (0x5A00) and `42240` (0xA500) — bitwise complements (industrial safety pattern)
+- **ON/OFF values**: `23040` (0x5A00) and `42240` (0xA500) - bitwise complements (industrial safety pattern)
 - **No cloud dependency**, no Thermorossi account required
 
 ---

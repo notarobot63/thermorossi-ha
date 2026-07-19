@@ -1,6 +1,6 @@
-# Thermorossi — Automations (Signal notifications via SignalMe)
+# Thermorossi - Automations (Signal notifications via SignalMe)
 #
-# Prerequisites — add to configuration.yaml:
+# Prerequisites - add to configuration.yaml:
 #
 #   rest_command:
 #     signal_notify:
@@ -10,7 +10,7 @@
 #       payload: '{"message": "{{ message }}"}'
 
 # ─────────────────────────────────────────────────────────────────
-# 1. GENERAL ALARM (any alarm bit set — reg[8]+reg[9])
+# 1. GENERAL ALARM (any alarm bit set - reg[8]+reg[9])
 # ─────────────────────────────────────────────────────────────────
 - alias: "Thermorossi - Alarm active"
   id: thermorossi_alarm_active
@@ -22,10 +22,10 @@
     - service: rest_command.signal_notify
       data:
         message: >-
-          🔥 Thermorossi — Alarme : {% set code = states('sensor.thermorossi_message_alarme') %}{% set t = {'ok':'OK','no_pellets':'Pas de pellets / Nettoyer brûleur','start_failed':'Démarrage échoué / Nettoyer brûleur','flue_gas_blocked':'Fumées non évacuées / Vérifier conduit','max_temp':'Alarme température max','flue_probe_disconnected':'Sonde température fumées déconnectée','exhaust_fan_rpm':'Capteur RPM extracteur fumées','exhaust_fan_fault':'Alarme ventilateur fumées','seismic':'Alarme sismique','probe_s1_disconnected':'Sonde S1 déconnectée','probe_s2_disconnected':'Sonde S2 déconnectée','probe_acs_disconnected':'Sonde ACS déconnectée','probe_sta_disconnected':'Sonde STA déconnectée','cleaning_motor':'Défaut moteur nettoyage','ash_drawer_full':'Tiroir plein','ash_drawer_missing':'Tiroir absent','lcd_timeout':'Timeout LCD','probe_stg_disconnected':'Sonde STG déconnectée','unknown':'Alarme inconnue'} %}{{ t.get(code, code) }}
+          🔥 Thermorossi - Alarme : {% set code = states('sensor.thermorossi_message_alarme') %}{% set t = {'ok':'OK','no_pellets':'Pas de pellets / Nettoyer brûleur','start_failed':'Démarrage échoué / Nettoyer brûleur','flue_gas_blocked':'Fumées non évacuées / Vérifier conduit','max_temp':'Alarme température max','flue_probe_disconnected':'Sonde température fumées déconnectée','exhaust_fan_rpm':'Capteur RPM extracteur fumées','exhaust_fan_fault':'Alarme ventilateur fumées','seismic':'Alarme sismique','probe_s1_disconnected':'Sonde S1 déconnectée','probe_s2_disconnected':'Sonde S2 déconnectée','probe_acs_disconnected':'Sonde ACS déconnectée','probe_sta_disconnected':'Sonde STA déconnectée','cleaning_motor':'Défaut moteur nettoyage','ash_drawer_full':'Tiroir plein','ash_drawer_missing':'Tiroir absent','lcd_timeout':'Timeout LCD','probe_stg_disconnected':'Sonde STG déconnectée','unknown':'Alarme inconnue'} %}{{ t.get(code, code) }}
 
 # ─────────────────────────────────────────────────────────────────
-# 2. ERROR STOP (STOP state — reg[6]=8)
+# 2. ERROR STOP (STOP state - reg[6]=8)
 # ─────────────────────────────────────────────────────────────────
 - alias: "Thermorossi - Error stop"
   id: thermorossi_stop_error
@@ -37,7 +37,7 @@
     - service: rest_command.signal_notify
       data:
         message: >-
-          🛑 Thermorossi — Poêle arrêté sur erreur.
+          🛑 Thermorossi - Poêle arrêté sur erreur.
           Alarme : {% set code = states('sensor.thermorossi_message_alarme') %}{% set t = {'ok':'OK','no_pellets':'Pas de pellets / Nettoyer brûleur','start_failed':'Démarrage échoué / Nettoyer brûleur','flue_gas_blocked':'Fumées non évacuées / Vérifier conduit','max_temp':'Alarme température max','flue_probe_disconnected':'Sonde température fumées déconnectée','exhaust_fan_rpm':'Capteur RPM extracteur fumées','exhaust_fan_fault':'Alarme ventilateur fumées','seismic':'Alarme sismique','probe_s1_disconnected':'Sonde S1 déconnectée','probe_s2_disconnected':'Sonde S2 déconnectée','probe_acs_disconnected':'Sonde ACS déconnectée','probe_sta_disconnected':'Sonde STA déconnectée','cleaning_motor':'Défaut moteur nettoyage','ash_drawer_full':'Tiroir plein','ash_drawer_missing':'Tiroir absent','lcd_timeout':'Timeout LCD','probe_stg_disconnected':'Sonde STG déconnectée','unknown':'Alarme inconnue'} %}{{ t.get(code, code) }}
 
 # ─────────────────────────────────────────────────────────────────
@@ -52,10 +52,10 @@
   action:
     - service: rest_command.signal_notify
       data:
-        message: "🪵 Thermorossi — Réserve de pellets vide. Remplissez le bac."
+        message: "🪵 Thermorossi - Réserve de pellets vide. Remplissez le bac."
 
 # ─────────────────────────────────────────────────────────────────
-# 4. STUCK IGNITION — clogged burner (START → STOP without reaching work)
+# 4. STUCK IGNITION - clogged burner (START → STOP without reaching work)
 # ─────────────────────────────────────────────────────────────────
 - alias: "Thermorossi - Stuck ignition"
   id: thermorossi_stuck_start
@@ -67,5 +67,5 @@
   action:
     - service: rest_command.signal_notify
       data:
-        message: "⚠️ Thermorossi — Allumage échoué. Le brûleur doit être nettoyé."
+        message: "⚠️ Thermorossi - Allumage échoué. Le brûleur doit être nettoyé."
 
