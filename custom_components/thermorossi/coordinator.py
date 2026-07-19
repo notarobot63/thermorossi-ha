@@ -1,6 +1,7 @@
 """DataUpdateCoordinator for the Thermorossi integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import timedelta
@@ -38,6 +39,7 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self.host = host
         self._base_url = f"http://{host}"
         self._fast_poll_cancels: list[Callable[[], None]] = []
+        self._write_lock = asyncio.Lock()
         super().__init__(
             hass,
             _LOGGER,
@@ -67,7 +69,7 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
             ) as resp:
                 resp.raise_for_status()
                 payload = await resp.json(content_type=None)
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             raise UpdateFailed(f"Connection error to stove ({self.host}): {err}") from err
         except ValueError as err:
             raise UpdateFailed(f"Invalid response from stove ({self.host}): {err}") from err
@@ -102,13 +104,15 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
     async def async_turn_on(self) -> bool:
         """Send the ON command."""
         result = await self._send_command(CMD_ON)
-        self._schedule_fast_poll()
+        if result:
+            self._schedule_fast_poll()
         return result
 
     async def async_turn_off(self) -> bool:
         """Send the OFF command."""
         result = await self._send_command(CMD_OFF)
-        self._schedule_fast_poll()
+        if result:
+            self._schedule_fast_poll()
         return result
 
     async def async_set_register(self, reg_id: int, value: int) -> bool:
@@ -121,17 +125,18 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
     async def _send_command_reg(self, reg_id: int, value: int) -> bool:
         url = f"{self._base_url}{API_SET_REGISTER}"
         payload = f"key={SET_KEY}&regId={reg_id}&value={value}&result=false"
-        try:
-            session = async_get_clientsession(self.hass)
-            async with session.post(
-                url,
-                data=payload,
-                headers=API_HEADERS,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
-                resp.raise_for_status()
-                result = await resp.json(content_type=None)
-        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
-            _LOGGER.error("Error sending command to stove: %s", err)
-            return False
+        async with self._write_lock:
+            try:
+                session = async_get_clientsession(self.hass)
+                async with session.post(
+                    url,
+                    data=payload,
+                    headers=API_HEADERS,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    resp.raise_for_status()
+                    result = await resp.json(content_type=None)
+            except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+                _LOGGER.error("Error sending command to stove: %s", err)
+                return False
         return isinstance(result, dict) and result.get("result") is True

@@ -46,6 +46,12 @@ async def async_setup_entry(
     ])
 
 
+def coordinator_get(coordinator: ThermorossiCoordinator, index: int) -> int | None:
+    if coordinator.data is None:
+        return None
+    return coordinator.data.get(index)
+
+
 class ThermorossiBaseSensor(ThermorossiEntity, SensorEntity):
     pass
 
@@ -214,10 +220,6 @@ class ThermorossiRtcSensor(ThermorossiBaseSensor):
         hour = (raw >> 6) & 0x1F
         minute = raw & 0x3F
         day_label = _RTC_DAYS[day] if 1 <= day <= 7 else "?"
-        return f"{day_label} {hour:02d}:{minute:02d}"
-
-
-def coordinator_get(coordinator: ThermorossiCoordinator, index: int) -> int | None:
-    if coordinator.data is None:
-        return None
-    return coordinator.data.get(index)
+        hour_label = f"{hour:02d}" if hour < 24 else "??"
+        minute_label = f"{minute:02d}" if minute < 60 else "??"
+        return f"{day_label} {hour_label}:{minute_label}"

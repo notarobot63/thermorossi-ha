@@ -4,6 +4,7 @@ from __future__ import annotations
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ACTIVE_STATES, ERROR_STATE, REG_STATUS
@@ -44,9 +45,11 @@ class ThermorossiSwitch(ThermorossiEntity, SwitchEntity):
         return (raw & 0xFF) != ERROR_STATE
 
     async def async_turn_on(self, **kwargs) -> None:
-        await self.coordinator.async_turn_on()
+        if not await self.coordinator.async_turn_on():
+            raise HomeAssistantError("Failed to turn on the stove")
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs) -> None:
-        await self.coordinator.async_turn_off()
+        if not await self.coordinator.async_turn_off():
+            raise HomeAssistantError("Failed to turn off the stove")
         await self.coordinator.async_request_refresh()

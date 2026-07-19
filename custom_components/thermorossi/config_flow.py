@@ -72,7 +72,10 @@ class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
                 headers=API_HEADERS,
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
-                resp.raise_for_status()
+                try:
+                    resp.raise_for_status()
+                except aiohttp.ClientResponseError:
+                    return "invalid_response"
                 data = await resp.json(content_type=None)
         except (aiohttp.ClientError, TimeoutError):
             return "cannot_connect"

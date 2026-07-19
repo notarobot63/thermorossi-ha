@@ -4,6 +4,7 @@ from __future__ import annotations
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ERROR_STATE, REG_FAN_SPEED, REG_FIRE_LEVEL, REG_STATUS
@@ -38,7 +39,7 @@ class ThermorossiBaseNumber(ThermorossiEntity, NumberEntity):
 class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
     _attr_translation_key = "fire_level"
     _attr_icon = "mdi:fire"
-    _attr_native_min_value = 1
+    _attr_native_min_value = 0
     _attr_native_max_value = 5
     _attr_native_step = 1
 
@@ -50,11 +51,11 @@ class ThermorossiFireLevelNumber(ThermorossiBaseNumber):
     def native_value(self) -> float | None:
         if self.coordinator.data is None:
             return None
-        val = self.coordinator.data.get(REG_FIRE_LEVEL, 0)
-        return float(val) if val > 0 else 1.0
+        return float(self.coordinator.data.get(REG_FIRE_LEVEL, 0))
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.async_set_register(REG_FIRE_LEVEL, int(value))
+        if not await self.coordinator.async_set_register(REG_FIRE_LEVEL, int(value)):
+            raise HomeAssistantError("Failed to set fire level on the stove")
         await self.coordinator.async_request_refresh()
 
 
@@ -76,5 +77,6 @@ class ThermorossiFanSpeedNumber(ThermorossiBaseNumber):
         return float(self.coordinator.data.get(REG_FAN_SPEED, 1))
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.async_set_register(REG_FAN_SPEED, int(value))
+        if not await self.coordinator.async_set_register(REG_FAN_SPEED, int(value)):
+            raise HomeAssistantError("Failed to set fan speed on the stove")
         await self.coordinator.async_request_refresh()
