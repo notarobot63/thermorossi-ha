@@ -19,6 +19,7 @@ from .const import (
     REG_FAN_SPEED,
     REG_FLUE_TEMP,
     REG_RTC,
+    ACTIVE_STATES,
     STATUS_CODES,
     ALARM_CODES,
     TEMP_MUL,
@@ -78,7 +79,7 @@ class ThermorossiStatusSensor(ThermorossiBaseSensor):
         code = (raw & 0xFF)
         if code == 8:
             return "mdi:fire-alert"
-        if code in (2, 3, 4, 5):
+        if code in ACTIVE_STATES:
             return "mdi:fire"
         return "mdi:fire-off"
 
