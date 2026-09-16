@@ -34,6 +34,7 @@ No cloud. No account. Direct HTTP communication on your local network.
 | Pellets low | `binary_sensor` | Active when pellet reserve sensor reports empty |
 | Power level | `number` | Adjustable power level (1–5) |
 | Fan speed | `number` | Adjustable fan speed (1–6) |
+| Temperature setpoint | `number` | Adjustable target temperature, 7–30°C |
 
 ### Stove states
 
