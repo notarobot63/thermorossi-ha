@@ -103,6 +103,9 @@
       },
       "fan_speed": {
         "name": "Fan speed"
+      },
+      "set_temperature": {
+        "name": "Temperature setpoint"
       }
     }
   }

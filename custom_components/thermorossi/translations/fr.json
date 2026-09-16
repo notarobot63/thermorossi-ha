@@ -103,6 +103,9 @@
       },
       "fan_speed": {
         "name": "Vitesse ventilateur"
+      },
+      "set_temperature": {
+        "name": "Consigne température"
       }
     }
   }
