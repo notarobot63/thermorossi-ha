@@ -1,5 +1,8 @@
 # Thermorossi card - 100% native HA (tile cards)
 # No custom cards required
+#
+# Entity IDs are the French ones (HA in French when the integration was added).
+# See the header of automations.yaml / the README for the English equivalents.
 
 type: vertical-stack
 cards:
@@ -35,30 +38,54 @@ cards:
           - type: numeric-input
             style: slider
 
-  # ── 3. Alarm banner (visible only when an alert is active) ───
+  # ── 3. Temperature setpoint ──────────────────────────────────
+  - type: tile
+    entity: number.thermorossi_consigne_temperature
+    name: Setpoint
+    icon: mdi:thermometer
+    color: red
+    features:
+      - type: numeric-input
+        style: buttons
+
+  # ── 4. Alarm banners (visible only when an alert is active) ──
+  # Tile names are static text (no templates): the alarm tiles show the
+  # alarm message sensor, whose state is translated by Home Assistant.
   - type: conditional
     conditions:
-      - condition: or
-        conditions:
-          - condition: state
-            entity: binary_sensor.thermorossi_alarme
-            state: "on"
-          - condition: state
-            entity: binary_sensor.thermorossi_arret_erreur
-            state: "on"
-          - condition: state
-            entity: binary_sensor.thermorossi_pellets_insuffisants
-            state: "on"
+      - condition: state
+        entity: binary_sensor.thermorossi_arret_erreur
+        state: "on"
     card:
       type: tile
-      entity: binary_sensor.thermorossi_arret_erreur
-      name: >
-        {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
-          Stove stopped - {{ states('sensor.thermorossi_message_alarme') }}
-        {% elif is_state('binary_sensor.thermorossi_alarme', 'on') %}
-          {{ states('sensor.thermorossi_message_alarme') }}
-        {% else %}
-          Pellet reserve empty
-        {% endif %}
+      entity: sensor.thermorossi_message_alarme
+      name: Stove stopped (turn off to acknowledge)
       icon: mdi:fire-alert
+      color: red
+
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.thermorossi_alarme
+        state: "on"
+      - condition: state
+        entity: binary_sensor.thermorossi_arret_erreur
+        state: "off"
+    card:
+      type: tile
+      entity: sensor.thermorossi_message_alarme
+      name: Alarm
+      icon: mdi:alert-circle
+      color: red
+
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.thermorossi_pellets_insuffisants
+        state: "on"
+    card:
+      type: tile
+      entity: binary_sensor.thermorossi_pellets_insuffisants
+      name: Pellet reserve empty - refill the hopper
+      icon: mdi:grain
       color: red

@@ -70,5 +70,32 @@ class ComputeAlarmCodeTests(unittest.TestCase):
         self.assertEqual(parsing.compute_alarm_code(0, 0), 0)
 
 
+class HostTests(unittest.TestCase):
+    def test_normalize_host(self) -> None:
+        self.assertEqual(parsing.normalize_host("  Stove.LAN "), "stove.lan")
+        self.assertEqual(parsing.normalize_host("[FD00::1]"), "fd00::1")
+
+    def test_is_valid_host(self) -> None:
+        for host in ("192.168.1.100", "fd00::1", "stove", "stove.lan"):
+            self.assertTrue(parsing.is_valid_host(host), host)
+        for host in ("", "not a host", "http://stove", "stove:80", "-stove"):
+            self.assertFalse(parsing.is_valid_host(host), host)
+
+    def test_build_base_url(self) -> None:
+        self.assertEqual(parsing.build_base_url("192.168.1.100"), "http://192.168.1.100")
+        self.assertEqual(parsing.build_base_url("stove.lan"), "http://stove.lan")
+        self.assertEqual(parsing.build_base_url("fd00::1"), "http://[fd00::1]")
+        self.assertEqual(parsing.build_base_url("fe80::1%eth0"), "http://[fe80::1%25eth0]")
+
+
+class DecodeTests(unittest.TestCase):
+    def test_active_alarm_bits(self) -> None:
+        self.assertEqual(parsing.active_alarm_bits(0), [])
+        self.assertEqual(parsing.active_alarm_bits(0b1010 | (1 << 16)), [1, 3, 16])
+
+    def test_decode_rtc(self) -> None:
+        self.assertEqual(parsing.decode_rtc((7 << 11) | (23 << 6) | 59), (7, 23, 59))
+
+
 if __name__ == "__main__":
     unittest.main()

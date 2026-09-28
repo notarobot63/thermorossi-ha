@@ -1,0 +1,127 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Thermorossi stove",
+        "description": "Enter the IP address of your Thermorossi stove.",
+        "data": {
+          "host": "Host / IP address"
+        }
+      },
+      "reconfigure": {
+        "title": "Change stove address",
+        "description": "Enter the new IP address or hostname of your Thermorossi stove.",
+        "data": {
+          "host": "Host / IP address"
+        }
+      }
+    },
+    "error": {
+      "invalid_host": "Invalid host or IP address.",
+      "cannot_connect": "Unable to connect to the stove. Check the IP address and that the stove is powered on.",
+      "http_error": "A device answered at this address but returned an HTTP error. Check that the IP is really the stove's WiNET module (open the /management.html page of this address in a browser). Details are in the Home Assistant logs.",
+      "not_json": "A device answered at this address but it does not look like a WiNET module. Check the IP address. Details are in the Home Assistant logs.",
+      "unexpected_payload": "The WiNET module answered with data this integration does not understand (unsupported firmware?). Details are in the Home Assistant logs."
+    },
+    "abort": {
+      "already_configured": "This stove is already configured.",
+      "reconfigure_successful": "The stove address has been updated."
+    }
+  },
+  "entity": {
+    "switch": {
+      "stove": {
+        "name": "Stove"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "State",
+        "state": {
+          "off": "Off",
+          "start": "Starting",
+          "work": "Heating",
+          "wait_on": "Standby",
+          "temp_ok": "Temperature OK",
+          "no_prog": "No schedule",
+          "wait_time": "Scheduled standby",
+          "stop": "Error stop",
+          "sunout": "Summer shutdown",
+          "unknown": "Unknown"
+        }
+      },
+      "set_temperature": {
+        "name": "Temperature setpoint"
+      },
+      "air_temperature": {
+        "name": "Ambient temperature"
+      },
+      "fire_level": {
+        "name": "Power level"
+      },
+      "fan_speed": {
+        "name": "Fan speed"
+      },
+      "flue_temperature": {
+        "name": "Flue temperature"
+      },
+      "rtc_clock": {
+        "name": "Internal clock",
+        "state_attributes": {
+          "weekday": {
+            "name": "Weekday"
+          }
+        }
+      },
+      "alarm_message": {
+        "name": "Alarm message",
+        "state": {
+          "ok": "OK",
+          "no_pellets": "No pellets / Clean burner",
+          "start_failed": "Start failed / Clean burner",
+          "flue_gas_blocked": "Flue gas not evacuated / Check duct",
+          "max_temp": "Max temperature alarm",
+          "flue_probe_disconnected": "Flue temperature probe disconnected",
+          "exhaust_fan_rpm": "Exhaust fan RPM sensor fault",
+          "exhaust_fan_fault": "Exhaust fan alarm",
+          "seismic": "Seismic alarm",
+          "probe_s1_disconnected": "S1 probe disconnected",
+          "probe_s2_disconnected": "S2 probe disconnected",
+          "probe_acs_disconnected": "ACS probe disconnected",
+          "probe_sta_disconnected": "STA probe disconnected",
+          "cleaning_motor": "Cleaning motor fault",
+          "ash_drawer_full": "Ash drawer full",
+          "ash_drawer_missing": "Ash drawer missing",
+          "lcd_timeout": "LCD timeout",
+          "probe_stg_disconnected": "STG probe disconnected",
+          "unknown": "Unknown alarm"
+        }
+      }
+    },
+    "binary_sensor": {
+      "error_stop": {
+        "name": "Error stop"
+      },
+      "alarm": {
+        "name": "Alarm"
+      },
+      "pellets_low": {
+        "name": "Pellets low"
+      },
+      "chrono": {
+        "name": "Chrono active"
+      }
+    },
+    "number": {
+      "fire_level": {
+        "name": "Power level"
+      },
+      "fan_speed": {
+        "name": "Fan speed"
+      },
+      "set_temperature": {
+        "name": "Temperature setpoint"
+      }
+    }
+  }
+}

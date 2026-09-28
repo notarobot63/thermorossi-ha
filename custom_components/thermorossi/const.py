@@ -5,6 +5,8 @@ DEFAULT_SCAN_INTERVAL = 30
 
 # Fast-poll schedule after a command: every 1s for 10s, then every 2s up to 30s
 FAST_POLL_DELAYS = [*range(1, 11), *range(12, 32, 2)]
+# Refresh-request debouncer cooldown (s); must not exceed the fast-poll step
+REFRESH_COOLDOWN = 1.0
 
 # API endpoints
 API_GET_REGISTERS = "/ajax/get-registers"
@@ -51,6 +53,9 @@ STATUS_CODES = {
 # States considered "on" (stove is active/heating)
 ACTIVE_STATES = {2, 3, 4, 5, 6}
 
+# Distinct state keys exposed by the status sensor (ENUM options)
+STATUS_OPTIONS = [*dict.fromkeys(STATUS_CODES.values()), "unknown"]
+
 # Error state
 ERROR_STATE = 8
 
@@ -84,3 +89,6 @@ ALARM_CODES = {
     15: "lcd_timeout",
     16: "probe_stg_disconnected",
 }
+
+# State keys exposed by the alarm message sensor (ENUM options)
+ALARM_OPTIONS = ["ok", *ALARM_CODES.values(), "unknown"]

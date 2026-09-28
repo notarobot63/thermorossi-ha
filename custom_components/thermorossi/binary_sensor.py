@@ -1,36 +1,32 @@
 """Binary sensors for the Thermorossi integration."""
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import (
-    ALARM_CODES,
-    ERROR_STATE,
-    REG_FLAGS,
-    REG_PELLET,
-    REG_STATUS,
-)
-from .coordinator import ThermorossiCoordinator
+from .const import ALARM_CODES, REG_FLAGS, REG_PELLET
+from .coordinator import ThermorossiConfigEntry
 from .entity import ThermorossiEntity
+from .parsing import active_alarm_bits
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: ThermorossiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: ThermorossiCoordinator = entry.runtime_data
+    coordinator = entry.runtime_data
     async_add_entities([
-        ThermorossiErrorSensor(coordinator, entry),
-        ThermorossiAlarmSensor(coordinator, entry),
-        ThermorossiPelletSensor(coordinator, entry),
-        ThermorossiChronoSensor(coordinator, entry),
+        ThermorossiErrorSensor(coordinator, entry, "error"),
+        ThermorossiAlarmSensor(coordinator, entry, "alarm"),
+        ThermorossiPelletSensor(coordinator, entry, "pellet"),
+        ThermorossiChronoSensor(coordinator, entry, "chrono"),
     ])
 
 
@@ -43,16 +39,9 @@ class ThermorossiErrorSensor(ThermorossiBaseBinarySensor):
     _attr_translation_key = "error_stop"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
-    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_error"
-
     @property
     def is_on(self) -> bool:
-        if self.coordinator.data is None:
-            return False
-        raw = self.coordinator.data.get(REG_STATUS, 1)
-        return (raw & 0xFF) == ERROR_STATE
+        return self.in_error
 
 
 class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
@@ -60,22 +49,14 @@ class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
     _attr_translation_key = "alarm"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
-    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_alarm"
-
     @property
     def is_on(self) -> bool:
         return self.coordinator.alarm_code != 0
 
     @property
-    def extra_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict[str, Any]:
         code = self.coordinator.alarm_code
-        active = [
-            ALARM_CODES.get(bit, f"alarm_bit_{bit}")
-            for bit in range(32)
-            if code & (1 << bit)
-        ]
+        active = [ALARM_CODES.get(bit, f"alarm_bit_{bit}") for bit in active_alarm_bits(code)]
         return {"active_alarms": active, "code": code}
 
 
@@ -83,30 +64,16 @@ class ThermorossiPelletSensor(ThermorossiBaseBinarySensor):
     """Active when the pellet reserve sensor reports empty (reg[10] != 0)."""
     _attr_translation_key = "pellets_low"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
-    _attr_icon = "mdi:grain"
-
-    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_pellet"
 
     @property
     def is_on(self) -> bool:
-        if self.coordinator.data is None:
-            return False
-        return self.coordinator.data.get(REG_PELLET, 0) != 0
+        return bool(self.coordinator.get(REG_PELLET))
 
 
 class ThermorossiChronoSensor(ThermorossiBaseBinarySensor):
     """Active when the chronothermostat schedule is enabled (reg[7] bit 0)."""
     _attr_translation_key = "chrono"
-    _attr_icon = "mdi:calendar-clock"
-
-    def __init__(self, coordinator: ThermorossiCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_chrono"
 
     @property
     def is_on(self) -> bool:
-        if self.coordinator.data is None:
-            return False
-        return bool(self.coordinator.data.get(REG_FLAGS, 0) & 0x1)
+        return bool((self.coordinator.get(REG_FLAGS) or 0) & 0x1)

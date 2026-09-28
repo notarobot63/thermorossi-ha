@@ -5,10 +5,14 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import timedelta
+from typing import Any
 
 import aiohttp
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -16,6 +20,7 @@ from .const import (
     DOMAIN,
     DEFAULT_SCAN_INTERVAL,
     FAST_POLL_DELAYS,
+    REFRESH_COOLDOWN,
     API_GET_REGISTERS,
     API_SET_REGISTER,
     API_HEADERS,
@@ -26,49 +31,74 @@ from .const import (
     SET_REG_ID,
     REG_ALARM_LSB,
     REG_ALARM_MSB,
+    REG_STATUS,
 )
-from .parsing import compute_alarm_code, parse_registers
+from .parsing import build_base_url, compute_alarm_code, parse_registers
 
 _LOGGER = logging.getLogger(__name__)
+
+type ThermorossiConfigEntry = ConfigEntry[ThermorossiCoordinator]
 
 
 class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
     """Polls the Thermorossi WiNET API and exposes register data."""
 
-    def __init__(self, hass: HomeAssistant, host: str) -> None:
-        self.host = host
-        self._base_url = f"http://{host}"
+    config_entry: ThermorossiConfigEntry
+
+    def __init__(self, hass: HomeAssistant, entry: ThermorossiConfigEntry) -> None:
+        self.host: str = entry.data[CONF_HOST]
+        self.base_url = build_base_url(self.host)
         self._fast_poll_cancels: list[Callable[[], None]] = []
-        self._write_lock = asyncio.Lock()
+        # The WiNET module is a tiny single-threaded HTTP server: serialize
+        # every request (reads and writes) to it.
+        self._io_lock = asyncio.Lock()
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+            # The default 10s cooldown would swallow the 1s fast-poll requests.
+            request_refresh_debouncer=Debouncer(
+                hass, _LOGGER, cooldown=REFRESH_COOLDOWN, immediate=True
+            ),
         )
+
+    def get(self, index: int) -> int | None:
+        """Return the raw value of a register, or None if unknown."""
+        if self.data is None:
+            return None
+        return self.data.get(index)
+
+    @property
+    def status_code(self) -> int | None:
+        """Return the stove status code (register 6 & 0xFF), or None if unknown."""
+        raw = self.get(REG_STATUS)
+        return None if raw is None else raw & 0xFF
 
     @property
     def alarm_code(self) -> int:
         """Return the 32-bit alarm code (0 = no alarm)."""
-        if self.data is None:
-            return 0
         return compute_alarm_code(
-            self.data.get(REG_ALARM_MSB, 0), self.data.get(REG_ALARM_LSB, 0)
+            self.get(REG_ALARM_MSB) or 0, self.get(REG_ALARM_LSB) or 0
         )
+
+    async def _post(self, path: str, payload: str) -> Any:
+        """POST a form payload to the stove and return the decoded JSON body."""
+        session = async_get_clientsession(self.hass)
+        async with self._io_lock, session.post(
+            f"{self.base_url}{path}",
+            data=payload,
+            headers=API_HEADERS,
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json(content_type=None)
 
     async def _async_update_data(self) -> dict[int, int]:
         """Fetch registers from the stove."""
-        url = f"{self._base_url}{API_GET_REGISTERS}"
         try:
-            session = async_get_clientsession(self.hass)
-            async with session.post(
-                url,
-                data=GET_PAYLOAD,
-                headers=API_HEADERS,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
-                resp.raise_for_status()
-                payload = await resp.json(content_type=None)
+            payload = await self._post(API_GET_REGISTERS, GET_PAYLOAD)
         except (aiohttp.ClientError, TimeoutError) as err:
             raise UpdateFailed(f"Connection error to stove ({self.host}): {err}") from err
         except ValueError as err:
@@ -85,7 +115,9 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
 
         @callback
         def _do_refresh(_now=None) -> None:
-            self.hass.async_create_task(self.async_request_refresh())
+            self.config_entry.async_create_background_task(
+                self.hass, self.async_request_refresh(), f"{DOMAIN}_fast_poll"
+            )
 
         for delay in FAST_POLL_DELAYS:
             self._fast_poll_cancels.append(async_call_later(self.hass, delay, _do_refresh))
@@ -103,40 +135,27 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
 
     async def async_turn_on(self) -> bool:
         """Send the ON command."""
-        result = await self._send_command(CMD_ON)
-        if result:
-            self._schedule_fast_poll()
-        return result
+        return await self.async_set_register(SET_REG_ID, CMD_ON)
 
     async def async_turn_off(self) -> bool:
         """Send the OFF command."""
-        result = await self._send_command(CMD_OFF)
-        if result:
-            self._schedule_fast_poll()
-        return result
+        return await self.async_set_register(SET_REG_ID, CMD_OFF)
 
     async def async_set_register(self, reg_id: int, value: int) -> bool:
-        """Public API to write an arbitrary register (used by number entities)."""
-        return await self._send_command_reg(reg_id, value)
-
-    async def _send_command(self, value: int) -> bool:
-        return await self._send_command_reg(SET_REG_ID, value)
-
-    async def _send_command_reg(self, reg_id: int, value: int) -> bool:
-        url = f"{self._base_url}{API_SET_REGISTER}"
+        """Write a register, then poll quickly so the new state shows up fast."""
         payload = f"key={SET_KEY}&regId={reg_id}&value={value}&result=false"
-        async with self._write_lock:
-            try:
-                session = async_get_clientsession(self.hass)
-                async with session.post(
-                    url,
-                    data=payload,
-                    headers=API_HEADERS,
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    resp.raise_for_status()
-                    result = await resp.json(content_type=None)
-            except (aiohttp.ClientError, TimeoutError, ValueError) as err:
-                _LOGGER.error("Error sending command to stove: %s", err)
-                return False
-        return isinstance(result, dict) and result.get("result") is True
+        try:
+            result = await self._post(API_SET_REGISTER, payload)
+        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+            _LOGGER.error("Error writing register %s on stove (%s): %s", reg_id, self.host, err)
+            return False
+
+        if not (isinstance(result, dict) and result.get("result") is True):
+            _LOGGER.error(
+                "Stove (%s) rejected write of register %s: %r", self.host, reg_id, result
+            )
+            return False
+
+        # The first fast poll (1s) picks up the new state.
+        self._schedule_fast_poll()
+        return True

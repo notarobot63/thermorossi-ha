@@ -77,6 +77,19 @@ Body: key=002&regId=1&value=42240&result=false   → Extinction (0xA500)
 
 Les deux valeurs sont des compléments binaires l'une de l'autre.
 
+### Réglages écrits par l'intégration
+
+L'intégration écrit aussi les registres suivants via le même endpoint
+(`key=002&regId=N&value=N&result=false`), avec le même index qu'en lecture :
+
+| regId | Réglage | Valeur écrite |
+|-------|---------|---------------|
+| 12 | Niveau de puissance | 0–5 |
+| 13 | Vitesse ventilateur | 1–6 |
+| 15 | Consigne température | `(°C + 18) / 0,25` (7–30 °C) |
+
+Le module répond `{"result": true}` quand l'écriture est acceptée.
+
 ### Chrono (programme horaire on/off)
 
 ```
