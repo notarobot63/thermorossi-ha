@@ -1,10 +1,12 @@
 {
   "domain": "thermorossi",
   "name": "Thermorossi (WiNET)",
-  "version": "1.1.0",
+  "codeowners": ["@notarobot63"],
   "config_flow": true,
   "documentation": "https://github.com/notarobot63/thermorossi-ha",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/notarobot63/thermorossi-ha/issues",
   "requirements": [],
-  "codeowners": ["@notarobot63"],
-  "iot_class": "local_polling"
+  "version": "1.2.0"
 }

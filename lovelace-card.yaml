@@ -1,5 +1,8 @@
 # Thermorossi card - Bubble Card + Mushroom
-# Requires: Bubble Card, Mushroom Cards, Card Mod
+# Requires (HACS frontend): Bubble Card, Mushroom Cards, Card Mod
+#
+# Entity IDs are the French ones (HA in French when the integration was added).
+# See the header of automations.yaml / the README for the English equivalents.
 
 type: vertical-stack
 cards:
@@ -67,15 +70,15 @@ cards:
       type: custom:mushroom-template-card
       primary: >
         {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
-          🛑 Stove stopped - {{ states('sensor.thermorossi_message_alarme') }}
+          🛑 Stove stopped - {{ state_translated('sensor.thermorossi_message_alarme') }}
         {% elif is_state('binary_sensor.thermorossi_alarme', 'on') %}
-          ⚠️ {{ states('sensor.thermorossi_message_alarme') }}
+          ⚠️ {{ state_translated('sensor.thermorossi_message_alarme') }}
         {% elif is_state('binary_sensor.thermorossi_pellets_insuffisants', 'on') %}
           ⚠️ Pellet reserve empty
         {% endif %}
       secondary: >
         {% if is_state('binary_sensor.thermorossi_arret_erreur', 'on') %}
-          Check burner or pellets before restarting
+          Check burner or pellets, then turn the stove off to acknowledge
         {% elif is_state('binary_sensor.thermorossi_pellets_insuffisants', 'on') %}
           Refill the pellet hopper
         {% endif %}

@@ -7,15 +7,25 @@
         "data": {
           "host": "Indirizzo IP"
         }
+      },
+      "reconfigure": {
+        "title": "Modifica indirizzo della stufa",
+        "description": "Inserisci il nuovo indirizzo IP o nome host della tua stufa Thermorossi.",
+        "data": {
+          "host": "Indirizzo IP"
+        }
       }
     },
     "error": {
       "invalid_host": "Indirizzo IP o nome host non valido.",
-      "cannot_connect": "Impossibile connettersi alla stufa. Verifica l'indirizzo IP.",
-      "invalid_response": "Risposta inattesa dalla stufa."
+      "cannot_connect": "Impossibile connettersi alla stufa. Verifica l'indirizzo IP e che la stufa sia accesa.",
+      "http_error": "Un dispositivo risponde a questo indirizzo ma restituisce un errore HTTP. Verifica che l'IP sia quello del modulo WiNET della stufa (apri la pagina /management.html di questo indirizzo in un browser). Dettagli nei log di Home Assistant.",
+      "not_json": "Un dispositivo risponde a questo indirizzo ma non sembra un modulo WiNET. Verifica l'indirizzo IP. Dettagli nei log di Home Assistant.",
+      "unexpected_payload": "Il modulo WiNET ha risposto con dati che l'integrazione non riconosce (firmware non supportato?). Dettagli nei log di Home Assistant."
     },
     "abort": {
-      "already_configured": "Questa stufa è già configurata."
+      "already_configured": "Questa stufa è già configurata.",
+      "reconfigure_successful": "L'indirizzo della stufa è stato aggiornato."
     }
   },
   "entity": {
@@ -56,7 +66,12 @@
         "name": "Temperatura fumi"
       },
       "rtc_clock": {
-        "name": "Orologio interno"
+        "name": "Orologio interno",
+        "state_attributes": {
+          "weekday": {
+            "name": "Giorno della settimana"
+          }
+        }
       },
       "alarm_message": {
         "name": "Messaggio di allarme",

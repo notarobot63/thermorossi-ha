@@ -7,15 +7,25 @@
         "data": {
           "host": "Adresse IP"
         }
+      },
+      "reconfigure": {
+        "title": "Changer l'adresse du poêle",
+        "description": "Entrez la nouvelle adresse IP ou le nom d'hôte de votre poêle Thermorossi.",
+        "data": {
+          "host": "Adresse IP"
+        }
       }
     },
     "error": {
       "invalid_host": "Adresse IP ou nom d'hôte invalide.",
-      "cannot_connect": "Impossible de se connecter au poêle. Vérifiez l'adresse IP.",
-      "invalid_response": "Réponse inattendue du poêle."
+      "cannot_connect": "Impossible de se connecter au poêle. Vérifiez l'adresse IP et que le poêle est sous tension.",
+      "http_error": "Un appareil répond à cette adresse mais renvoie une erreur HTTP. Vérifiez que l'IP est bien celle du module WiNET du poêle (ouvrez la page /management.html de cette adresse dans un navigateur). Détails dans les journaux de Home Assistant.",
+      "not_json": "Un appareil répond à cette adresse mais ne ressemble pas à un module WiNET. Vérifiez l'adresse IP. Détails dans les journaux de Home Assistant.",
+      "unexpected_payload": "Le module WiNET a renvoyé des données que l'intégration ne comprend pas (firmware non supporté ?). Détails dans les journaux de Home Assistant."
     },
     "abort": {
-      "already_configured": "Ce poêle est déjà configuré."
+      "already_configured": "Ce poêle est déjà configuré.",
+      "reconfigure_successful": "L'adresse du poêle a été mise à jour."
     }
   },
   "entity": {
@@ -56,7 +66,12 @@
         "name": "Température fumées"
       },
       "rtc_clock": {
-        "name": "Horloge interne"
+        "name": "Horloge interne",
+        "state_attributes": {
+          "weekday": {
+            "name": "Jour de la semaine"
+          }
+        }
       },
       "alarm_message": {
         "name": "Message alarme",

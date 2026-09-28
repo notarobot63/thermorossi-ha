@@ -1,3 +1,59 @@
 {
-  "integration_icon": "mdi:fire"
+  "entity": {
+    "sensor": {
+      "status": {
+        "default": "mdi:fire-off",
+        "state": {
+          "start": "mdi:fire",
+          "work": "mdi:fire",
+          "wait_on": "mdi:fire",
+          "temp_ok": "mdi:fire",
+          "no_prog": "mdi:fire",
+          "stop": "mdi:fire-alert"
+        }
+      },
+      "fire_level": {
+        "default": "mdi:speedometer"
+      },
+      "fan_speed": {
+        "default": "mdi:fan"
+      },
+      "alarm_message": {
+        "default": "mdi:alert-circle",
+        "state": {
+          "ok": "mdi:check-circle"
+        }
+      },
+      "flue_temperature": {
+        "default": "mdi:thermometer-chevron-up"
+      },
+      "rtc_clock": {
+        "default": "mdi:clock-outline"
+      }
+    },
+    "binary_sensor": {
+      "pellets_low": {
+        "default": "mdi:grain"
+      },
+      "chrono": {
+        "default": "mdi:calendar-clock"
+      }
+    },
+    "switch": {
+      "stove": {
+        "default": "mdi:fire"
+      }
+    },
+    "number": {
+      "fire_level": {
+        "default": "mdi:fire"
+      },
+      "fan_speed": {
+        "default": "mdi:fan"
+      },
+      "set_temperature": {
+        "default": "mdi:thermometer"
+      }
+    }
+  }
 }
