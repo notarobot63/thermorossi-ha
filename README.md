@@ -93,9 +93,15 @@ fan and setpoint sliders are unavailable in this state.
 
 ### Via HACS (recommended)
 
-1. In HACS, go to **Integrations → ⋮ → Custom repositories**
-2. Add `https://github.com/notarobot63/thermorossi-ha` as an **Integration**
-3. Search for **Thermorossi WiNET** and install
+The integration is not (yet) in the HACS default store: add it as a custom repository.
+
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=notarobot63&repository=thermorossi-ha&category=integration)
+
+Or manually:
+
+1. Open **HACS**, then **⋮** (top right) → **Custom repositories**
+2. Repository: `https://github.com/notarobot63/thermorossi-ha`, Type: **Integration** → **Add**
+3. Search for **Thermorossi WiNET** in HACS and **Download** it
 4. Restart Home Assistant
 
 ### Manual
