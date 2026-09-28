@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1]
+
+### Ajouts
+- Icône de l'intégration (`brand/icon.png`) fournie directement avec l'intégration : elle s'affiche dans Home Assistant 2026.3+ et dans HACS. C'est aussi un prérequis pour entrer dans la liste par défaut de HACS.
+
+### Interne
+- La validation HACS de la CI tourne sans exception (la vérification des icônes n'est plus ignorée).
+
 ## [1.2.0]
 
 ⚠️ **Home Assistant 2024.11 minimum requis** (au lieu de 2024.1 annoncé jusqu'ici, qui était déjà faux : la 1.1.0 plantait en dessous de 2024.4).
