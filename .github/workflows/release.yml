@@ -1,7 +1,8 @@
 name: Release
 
 # Pushing a vX.Y.Z tag publishes a GitHub release whose notes are the
-# matching "## [X.Y.Z]" section of CHANGELOG.md.
+# matching "## [X.Y.Z]" section of CHANGELOG.md. A release that already
+# exists (e.g. published by hand) is left untouched.
 on:
   push:
     tags: ["v*"]
@@ -13,8 +14,18 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - name: Check for an existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists, nothing to do."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Extract release notes
+        if: steps.existing.outputs.exists != 'true'
         run: |
           version="${GITHUB_REF_NAME#v}"
           awk -v v="$version" '
@@ -26,6 +37,7 @@ jobs:
             exit 1
           fi
       - name: Publish release
+        if: steps.existing.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
