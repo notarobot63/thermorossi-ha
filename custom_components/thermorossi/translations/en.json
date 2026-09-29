@@ -96,6 +96,32 @@
           "probe_stg_disconnected": "STG probe disconnected",
           "unknown": "Unknown alarm"
         }
+      },
+      "chrono_program": {
+        "name": "Weekly schedule",
+        "state_attributes": {
+          "monday": {
+            "name": "Monday"
+          },
+          "tuesday": {
+            "name": "Tuesday"
+          },
+          "wednesday": {
+            "name": "Wednesday"
+          },
+          "thursday": {
+            "name": "Thursday"
+          },
+          "friday": {
+            "name": "Friday"
+          },
+          "saturday": {
+            "name": "Saturday"
+          },
+          "sunday": {
+            "name": "Sunday"
+          }
+        }
       }
     },
     "binary_sensor": {

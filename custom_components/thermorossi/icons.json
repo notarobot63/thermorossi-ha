@@ -29,6 +29,9 @@
       },
       "rtc_clock": {
         "default": "mdi:clock-outline"
+      },
+      "chrono_program": {
+        "default": "mdi:calendar-clock"
       }
     },
     "binary_sensor": {

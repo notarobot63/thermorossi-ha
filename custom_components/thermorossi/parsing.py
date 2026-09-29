@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
+from collections.abc import Mapping
 
 _HOSTNAME_RE = re.compile(
     r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?'
@@ -83,3 +84,34 @@ def active_alarm_bits(code: int) -> list[int]:
 def decode_rtc(raw: int) -> tuple[int, int, int]:
     """Decode the RTC register into (weekday 1-7, hour, minute)."""
     return (raw >> 11) & 0x7, (raw >> 6) & 0x1F, raw & 0x3F
+
+
+def format_chrono_time(raw: int) -> str:
+    """Format a schedule register, encoded (hour << 8) | minute, as HH:MM."""
+    hour, minute = (raw >> 8) & 0xFF, raw & 0xFF
+    hour_label = f"{hour:02d}" if hour < 24 else "??"
+    minute_label = f"{minute:02d}" if minute < 60 else "??"
+    return f"{hour_label}:{minute_label}"
+
+
+def decode_chrono(
+    registers: Mapping[int, int], first_reg: int, days: int, slots_per_day: int
+) -> list[list[str]] | None:
+    """Decode the weekly schedule into one list of "HH:MM-HH:MM" slots per day.
+
+    Each day spans 2 * slots_per_day consecutive registers, alternating start
+    and stop. A slot whose start equals its stop is unused. Returns None if any
+    schedule register is missing.
+    """
+    week: list[list[str]] = []
+    for day in range(days):
+        slots: list[str] = []
+        for slot in range(slots_per_day):
+            reg = first_reg + 2 * (day * slots_per_day + slot)
+            start, stop = registers.get(reg), registers.get(reg + 1)
+            if start is None or stop is None:
+                return None
+            if start != stop:
+                slots.append(f"{format_chrono_time(start)}-{format_chrono_time(stop)}")
+        week.append(slots)
+    return week

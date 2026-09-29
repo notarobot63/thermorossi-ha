@@ -96,6 +96,36 @@ class DecodeTests(unittest.TestCase):
     def test_decode_rtc(self) -> None:
         self.assertEqual(parsing.decode_rtc((7 << 11) | (23 << 6) | 59), (7, 23, 59))
 
+    def test_format_chrono_time(self) -> None:
+        self.assertEqual(parsing.format_chrono_time(0x081E), "08:30")
+        self.assertEqual(parsing.format_chrono_time(0x0000), "00:00")
+        self.assertEqual(parsing.format_chrono_time(0x183C), "??:??")
+
+    def test_decode_chrono_real_capture(self) -> None:
+        # category=2 payload captured from a stove: slot 1 only, 06:00 to
+        # 08:30 on weekdays, 09:00 on Saturday, 08:00 on Sunday.
+        regs = {reg: 0 for reg in range(24, 66)}
+        for day in range(7):
+            regs[24 + 6 * day] = 0x0600
+            regs[25 + 6 * day] = 0x081E
+        regs[55], regs[61] = 0x0900, 0x0800
+        week = parsing.decode_chrono(regs, 24, 7, 3)
+        self.assertEqual(week[:5], [["06:00-08:30"]] * 5)
+        self.assertEqual(week[5], ["06:00-09:00"])
+        self.assertEqual(week[6], ["06:00-08:00"])
+
+    def test_decode_chrono_slot_layout(self) -> None:
+        # Slot 3 of Tuesday lives at 24 + 6 + 4 (start) and 24 + 6 + 5 (stop)
+        regs = {reg: 0 for reg in range(24, 66)}
+        regs[34], regs[35] = 0x1200, 0x1530
+        week = parsing.decode_chrono(regs, 24, 7, 3)
+        self.assertEqual(week[1], ["18:00-21:48"])
+        self.assertEqual(sum(map(len, week)), 1)
+
+    def test_decode_chrono_missing_register(self) -> None:
+        regs = {reg: 0 for reg in range(24, 65)}  # 65 missing
+        self.assertIsNone(parsing.decode_chrono(regs, 24, 7, 3))
+
 
 if __name__ == "__main__":
     unittest.main()

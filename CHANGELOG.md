@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0]
+
+### Ajouts
+- **Capteur « Programme hebdomadaire »** (diagnostic) : il expose le programme horaire du poêle, jusqu'ici invisible depuis Home Assistant. Sa valeur est le nombre de créneaux programmés dans la semaine, et chaque jour est un attribut contenant ses créneaux au format `06:00-08:30`.
+  - Le programme est relu toutes les 10 minutes seulement, car il ne change quasiment jamais.
+  - Si cette lecture échoue, seul ce capteur devient indisponible : les autres entités ne sont pas affectées.
+  - Les créneaux sont évalués par l'horloge interne du poêle, pas par celle du réseau. Une horloge qui a dérivé décale tout le programme. Le capteur « Horloge interne » permet de le vérifier.
+
+### Documentation
+- `WINET_API.md` : le programme horaire, les statistiques de service et les paramètres d'usine sont documentés, la carte des registres est complétée (versions de firmware, sondes des modèles hydro), et une section liste ce qui reste non élucidé.
+- Correction de deux erreurs : la lecture brute de registres prend les paramètres `startAddr` et `nPoints` (les noms donnés jusqu'ici renvoyaient une erreur qui ressemblait à un refus d'accès), et les endpoints de configuration WiFi et DHCP sont marqués « non vérifié », car ils sont absents du firmware analysé.
+
 ## [1.2.1]
 
 ### Ajouts

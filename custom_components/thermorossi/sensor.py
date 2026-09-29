@@ -19,6 +19,9 @@ from .const import (
     REG_FAN_SPEED,
     REG_FLUE_TEMP,
     REG_RTC,
+    REG_CHRONO_FIRST,
+    CHRONO_DAYS,
+    CHRONO_SLOTS_PER_DAY,
     STATUS_CODES,
     STATUS_OPTIONS,
     ALARM_CODES,
@@ -28,7 +31,7 @@ from .const import (
 )
 from .coordinator import ThermorossiConfigEntry
 from .entity import ThermorossiEntity
-from .parsing import active_alarm_bits, decode_rtc
+from .parsing import active_alarm_bits, decode_chrono, decode_rtc
 
 
 async def async_setup_entry(
@@ -46,6 +49,7 @@ async def async_setup_entry(
         ThermorossiFanSpeedSensor(coordinator, entry, "fan_speed"),
         ThermorossiAlarmMessageSensor(coordinator, entry, "alarm_msg"),
         ThermorossiRtcSensor(coordinator, entry, "rtc"),
+        ThermorossiChronoProgramSensor(coordinator, entry, "chrono_program"),
     ])
 
 
@@ -154,6 +158,42 @@ class ThermorossiFlueTempSensor(ThermorossiBaseSensor):
     @property
     def native_value(self) -> int | None:
         return self.coordinator.get(REG_FLUE_TEMP) or None
+
+
+class ThermorossiChronoProgramSensor(ThermorossiBaseSensor):
+    """Weekly schedule (category=2): state is the number of programmed slots,
+    each weekday's "HH:MM-HH:MM" slots as attributes."""
+    _attr_translation_key = "chrono_program"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def _week(self) -> list[list[str]] | None:
+        if self.coordinator.data is None:
+            return None
+        return decode_chrono(
+            self.coordinator.data,
+            REG_CHRONO_FIRST,
+            len(CHRONO_DAYS),
+            CHRONO_SLOTS_PER_DAY,
+        )
+
+    @property
+    def available(self) -> bool:
+        # Unavailable until the schedule has been read at least once
+        return super().available and self._week() is not None
+
+    @property
+    def native_value(self) -> int | None:
+        week = self._week()
+        if week is None:
+            return None
+        return sum(len(slots) for slots in week)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        week = self._week()
+        if week is None:
+            return None
+        return dict(zip(CHRONO_DAYS, week))
 
 
 class ThermorossiRtcSensor(ThermorossiBaseSensor):
