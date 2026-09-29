@@ -1,8 +1,13 @@
 # Thermorossi WiNET - Documentation technique API
 
-Résultat d'une session de rétro-ingénierie du module WiFi WiNET embarqué sur les poêles à
-pellets Thermorossi. L'analyse repose sur l'inspection du trafic HTTP et du code JavaScript
-servi par le module (`/js/management.js`, `/js/networks.js`, `/js/dhcp.js`).
+Résultat de sessions de rétro-ingénierie du module WiFi WiNET embarqué sur les poêles à
+pellets Thermorossi. L'analyse repose sur l'inspection du trafic HTTP et du code servi par
+le module : `management.html` (qui porte la table de décodage des registres dans les
+attributs de ses éléments), `management.js` et `main.min.js`.
+
+Sauf mention contraire, tout ce qui suit a été vérifié sur un module réel. Les sections
+marquées **non vérifié** proviennent d'une analyse antérieure et n'ont pas pu être
+confirmées sur le firmware décrit ici.
 
 ---
 
@@ -35,8 +40,7 @@ Le paramètre `key` détermine le mode de lecture :
 | key | Description |
 |-----|-------------|
 | `020` | Lecture par catégorie (`category=1/2/3`) |
-| `030` | Lecture par plage (`startRegId=N&regCount=N`) |
-| `010` | Lecture du programme horaire |
+| `030` | Lecture brute par plage (`startAddr=N&nPoints=N`, voir ci-dessous) |
 
 Réponse :
 ```json
@@ -48,8 +52,21 @@ Réponse :
 | category | Contenu |
 |----------|---------|
 | 1 | Registres temps-réel (état, températures, alarmes…) |
-| 2 | Programme horaire (7 jours × créneaux allumage/extinction) |
+| 2 | Programme horaire, registres 24–65 (voir [Programme horaire](#programme-horaire-category2)) |
 | 3 | Informations firmware (84 registres ASCII, index 128-211) |
+
+**Lecture brute (key=030) :**
+
+```
+POST /ajax/get-registers
+Body: key=030&startAddr=177&nPoints=18
+```
+
+- `nPoints` est plafonné à 125 par requête, `startAddr + nPoints` doit rester ≤ 1024.
+- **Aucune authentification n'est requise** : toute la plage 0–1023 est lisible sans PIN.
+- Les noms de paramètres sont stricts : `startRegId`/`regCount` renvoient simplement
+  `{"result": false}`, ce qui ressemble à un refus d'accès mais n'en est pas un.
+- Réponse : `{"key": 30, "registers": [[index, value], ...]}`.
 
 ### Écriture d'un registre
 
@@ -66,6 +83,8 @@ Réponse : `{"result": true}` ou `{"result": false}`
 POST /ajax/set-registers
 Body: key=003 à 009  (un par jour : lundi=003 … dimanche=009)
 ```
+
+La copie du programme d'un jour sur un autre passe par `key=010` (paramètres `src` et `dest`).
 
 ### Commandes principales
 
@@ -129,6 +148,8 @@ connexion authentifiée affecte tous les clients simultanés.
 | 0 | - | - | |
 | 1 | Commande | word | Écriture : 0x5A00=ON, 0xA500=OFF |
 | 3 | Flags modèle | flags | bit2=Air ARM, bit13=WiFi, bit6=room control |
+| 4 | Version firmware afficheur | word | 0 si l'afficheur ne la publie pas |
+| 5 | Version firmware carte de puissance | word | idem |
 | 6 | État | `& 0xFF` | Voir codes état ci-dessous |
 | 7 | Flags | flags | bit0=chrono actif, bit6=room control, bit7=eco |
 | 8 | Alarme LSB | word | Bits d'alarme 0–15 |
@@ -139,8 +160,14 @@ connexion authentifiée affecte tous les clients simultanés.
 | 13 | Vitesse ventilateur | 1–6 | Vitesse ventilateur actuelle |
 | 15 | Consigne température | raw | `valeur × 0,25 − 18` = °C |
 | 16 | Température ambiante | raw | `valeur × 0,25 − 18` = °C (module room control) |
+| 17–20 | Sondes hydro | °C direct | Modèles hydro (eau chaudière, eau sanitaire…). ~99–100 sur un modèle air : sondes absentes |
 | 21 | Température fumées | raw °C | Valeur directe en degrés Celsius |
 | 22 | Horloge RTC | encodé | bits[13:11]=jour(1-7), bits[10:6]=heure, bits[5:0]=minute |
+| 112 | Consigne hydro | °C direct | Plage 65–73 °C, modèles hydro uniquement |
+
+L'interface web décode chaque registre à partir d'attributs portés par le HTML
+(`reg`, `regType`, `mul`, `offset`, `mask`, `shift`, `unit`, `min`, `max`) : la table
+de décodage est déclarative dans `management.html`, pas dans le JavaScript.
 
 **Conversion température** (reg 15 et 16) :
 ```
@@ -156,11 +183,59 @@ minute  = val         & 0x3F
 
 ---
 
+## Programme horaire (category=2)
+
+Registres 24 à 65 : 6 registres par jour, du lundi au dimanche, soit 3 créneaux de
+(allumage, extinction). Adresse du jour N (1 = lundi) : `24 + 6 × (N − 1)`.
+
+| Décalage dans le jour | Contenu |
+|-----------------------|---------|
+| +0 / +1 | Créneau 1 : allumage / extinction |
+| +2 / +3 | Créneau 2 : allumage / extinction |
+| +4 / +5 | Créneau 3 : allumage / extinction |
+
+Encodage d'un horaire : `(heure << 8) | minute` (ex. `0x081E` = 08:30). Un créneau dont
+l'allumage égale l'extinction (typiquement `0`/`0`) est inutilisé.
+
+Les créneaux sont évalués par l'horloge interne du poêle (reg 22), pas par l'heure du
+réseau : une horloge dérivée décale tout le programme.
+
+---
+
+## Registres de service et d'usine
+
+Lisibles via `key=030`, mais **toujours à 0** tant que le poêle n'est pas en mode service
+(activé depuis l'écran LCD) : le board ne les pousse pas au module WiFi en temps normal.
+
+Statistiques (177–194). Les compteurs sur deux registres forment un mot de 32 bits,
+registre N = poids fort, N+1 = poids faible :
+
+| Registres | Libellé firmware | Signification |
+|-----------|------------------|---------------|
+| 177 | MAIN HZ. | Fréquence secteur |
+| 178–179 | SMOKE FAN SPEED | Vitesse extracteur de fumées |
+| 180 | COCLEA ON | Vis sans fin (temps de marche) |
+| 181–182 | NR. START TOT. | Nombre total d'allumages |
+| 183–184 | NR. START CHRONO | Allumages par le programme horaire |
+| 185–186 | NR. START EXT. | Allumages par commande externe |
+| 187–188 | WORK HOUR TOT. | Heures de fonctionnement |
+| 189–190 | COCLEA HOUR TOT. | Heures de vis sans fin |
+| 191–192 | T SMOKE | Température fumées |
+| 193–194 | T BOARD | Température carte |
+
+Paramètres d'usine (220, 256–287) : test I/O (256), désactivation encodeur/sonde fumées
+(257, 258), vitesses du ventilateur d'ambiance par niveau (259–265, 220), vitesses
+extracteur (266–274), temps de marche vis sans fin par niveau (275–280), PID (281–282),
+temporisations et seuils d'alarme (283–287). Ce sont des réglages de combustion :
+**ne jamais les écrire**.
+
+---
+
 ## Codes d'état (reg[6] & 0xFF)
 
 | Valeur | Code | Description |
 |--------|------|-------------|
-| 0, 1 | `off` | Éteint |
+| 0, 1 | `off` | Éteint (0 = `----` dans le firmware : état non encore reçu du board) |
 | 2 | `start` | Allumage en cours |
 | 3 | `work` | Chauffe |
 | 4 | `wait_on` | En attente d'allumage |
@@ -207,7 +282,7 @@ Le module expose 3 niveaux d'accès PIN, protégeant des sections de l'interface
 |------|--------|---------|
 | 1 | Tech support | Langue de l'interface, statistiques board |
 | 2 | Factory | Tests I/O, réglages usine (reg 256+) |
-| 3 | Debug | Browser Modbus brut (reg 0–898) |
+| 3 | Debug | Browser Modbus brut de l'interface (l'API `key=030` sous-jacente, elle, répond sans PIN) |
 
 **PIN confirmé :** valeur retirée de ce document public (firmware partagé entre poêles, un PIN divulgué ici serait valide ailleurs). Type=1 (tech support) a un PIN valide sur 4 chiffres, gardé en note privée.
 
@@ -229,27 +304,21 @@ POST /ajax/get-registers
 Body: key=020&category=1
 ```
 
-Puis dans la réponse, le JSON contient aussi : `rssi`, `authLevel`, `name`.
+La réponse porte, à côté de `registers` : `rssi`, `authLevel`, `name`, `localWeb` et `cat`.
 
-### Scan des réseaux disponibles
+### Scan des réseaux, connexion et configuration IP (non vérifié)
 
-```
-GET /ajax/get-networks
-```
-
-### Connexion à un réseau
-
-```
-POST /ajax/connect
-Body: ssid=MonReseau&password=motdepasse
-```
-
-### Configuration IP
+> **Non vérifié.** Les endpoints ci-dessous sont issus d'une analyse antérieure. Ils sont
+> absents du front servi par le firmware décrit ici : `management.js` et `main.min.js` ne
+> référencent que `get-registers`, `set-register`, `set-registers`, `login` et `logout`, et
+> il n'existe ni fichier `networks` ni fichier `dhcp`. Ils correspondent probablement à une
+> autre version du module. À confirmer avant toute utilisation.
 
 ```
+GET  /ajax/get-networks
+POST /ajax/connect        ssid=MonReseau&password=motdepasse
 GET  /ajax/get-dhcp
-POST /ajax/set-dhcp
-Body: dhcpEnabled=true|false&staticIp=x.x.x.x&staticMask=x.x.x.x&staticGw=x.x.x.x
+POST /ajax/set-dhcp       dhcpEnabled=true|false&staticIp=…&staticMask=…&staticGw=…
 ```
 
 ---
@@ -292,3 +361,22 @@ chrono_on  = bool(regs.get(7, 0) & 0x1)
   les 500 ms.
 - **Résistance au brute force** : au-delà de ~20 req/s, le module devient injoignable
   pendant quelques secondes (protection implicite par saturation, pas de ban IP).
+- **Verrouillage purement côté client** : le niveau d'accès renvoyé par `/ajax/login` ne
+  sert qu'à afficher un conteneur déjà présent dans la page (`techParamsContainer`,
+  `factoryParamsContainer`, `debugParamsContainer`). Le contenu de ces sections est servi
+  à tout le monde, et `key=030` lit les registres correspondants sans authentification.
+
+---
+
+## Points non élucidés
+
+- **Registres sans signification connue** : 0 (constant à `0x8000`), 2, 14, 23, et les
+  valeurs du registre 11 (« mode opération »). Le registre 3 n'a que 3 bits identifiés
+  sur 16. Le code du module ne traite explicitement que les registres 0, 3, 6–13, 16 et 22.
+- **Registre 21 (température des fumées)** : aucun code du module ne le manipule. Son sens
+  vient de l'observation, pas du firmware.
+- **Créneaux 2 et 3 du programme horaire** : leur décodage vient du code du module, mais
+  n'a jamais été observé sur un programme réel qui les utilise.
+- **Écriture des registres d'usine** : on ignore si elle exige une session authentifiée.
+  Non testé volontairement (paramètres de combustion).
+- **Registres 66–127, 195–219, 221–255 et 288–1023** : lisibles, constamment à zéro.
