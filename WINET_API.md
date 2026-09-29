@@ -2,18 +2,29 @@
 
 Résultat de sessions de rétro-ingénierie du module WiFi WiNET embarqué sur les poêles à
 pellets Thermorossi. L'analyse repose sur l'inspection du trafic HTTP et du code servi par
-le module : `management.html` (qui porte la table de décodage des registres dans les
-attributs de ses éléments), `management.js` et `main.min.js`.
+le module :
 
-Sauf mention contraire, tout ce qui suit a été vérifié sur un module réel. Les sections
-marquées **non vérifié** proviennent d'une analyse antérieure et n'ont pas pu être
-confirmées sur le firmware décrit ici.
+| Page | Script | Contenu |
+|------|--------|---------|
+| `management.html` | `management.js` | Pilotage du poêle, programme horaire, sections protégées par PIN. La page porte la table de décodage des registres dans les attributs de ses éléments |
+| `status.html` | `status.js` | Onglet « WI-FI » : état réseau, redémarrage, mise à jour du firmware |
+| `networks.html` | `networks.js` | Scan des réseaux WiFi et connexion (bouton de `status.html`) |
+| `dhcp.html` | `dhcp.js` | DHCP ou IP fixe (bouton de `status.html`) |
+
+`main.min.js` regroupe jQuery et la fonction de traduction commune. Les pages ne sont
+reliées que par des navigations en JavaScript (`App.Utilities.GoToUrl`), pas par des liens.
+
+Sauf mention contraire, tout ce qui suit a été vérifié sur un module réel. Les écritures
+et les actions qui pourraient déconnecter le module sont documentées d'après le code de
+l'interface, sans avoir été exécutées : c'est indiqué à chaque fois.
 
 ---
 
 ## Le module WiNET
 
-- **Matériel** : ESP32 ou similaire, serveur HTTP embarqué
+- **Matériel** : puce Espressif, probablement un ESP8266 (les codes d'état WiFi 0–5
+  reprennent l'énumération du SDK ESP8266). Serveur HTTP embarqué `NetSoftware-httpd/0.4`
+- **Chemins inconnus** : le serveur ferme la connexion sans réponse HTTP
 - **Rôle** : pont entre le bus Modbus interne du poêle et une interface web/HTTP
 - **Interface web** : `http://<ip>/management.html`
 - **Adresse par défaut** : DHCP (IP fixe recommandée sur le routeur)
@@ -26,8 +37,9 @@ via HTTP. Il ne stocke pas lui-même les valeurs - elles viennent du poêle.
 
 ## Endpoints HTTP
 
-Toutes les requêtes sont des `POST` avec `Content-Type: application/x-www-form-urlencoded`
-et le header `X-Requested-With: XMLHttpRequest`.
+Les requêtes sont des `POST` avec `Content-Type: application/x-www-form-urlencoded`
+et le header `X-Requested-With: XMLHttpRequest`, sauf `GET /ajax/get-dhcp`. Les endpoints
+réseau sont décrits dans [Configuration WiFi](#configuration-wifi).
 
 ### Lecture de registres
 
@@ -306,20 +318,73 @@ Body: key=020&category=1
 
 La réponse porte, à côté de `registers` : `rssi`, `authLevel`, `name`, `localWeb` et `cat`.
 
-### Scan des réseaux, connexion et configuration IP (non vérifié)
+Aucune des pages réseau ne demande de PIN dans l'interface. `get-status` et `get-dhcp`
+répondent sans session.
 
-> **Non vérifié.** Les endpoints ci-dessous sont issus d'une analyse antérieure. Ils sont
-> absents du front servi par le firmware décrit ici : `management.js` et `main.min.js` ne
-> référencent que `get-registers`, `set-register`, `set-registers`, `login` et `logout`, et
-> il n'existe ni fichier `networks` ni fichier `dhcp`. Ils correspondent probablement à une
-> autre version du module. À confirmer avant toute utilisation.
+### État réseau détaillé
 
 ```
-GET  /ajax/get-networks
-POST /ajax/connect        ssid=MonReseau&password=motdepasse
+POST /ajax/get-status
+```
+
+Vérifié. Réponse :
+
+```json
+{"status": 5, "lastDisconnectReason": 2, "currentIp": "192.168.1.100",
+ "currentMask": "255.255.255.0", "currentGw": "192.168.1.1", "client": 3,
+ "network": "MonReseau", "rssi": -67, "fwVer": "0.73", "boot": 2}
+```
+
+| Champ | Contenu |
+|-------|---------|
+| `status` | Connexion WiFi : 0 inactive, 1 en cours, 2 mauvais mot de passe, 3 point d'accès introuvable, 4 échec, 5 connecté avec IP |
+| `client` | Connexion au cloud : 0 inactive, 1 en pause, 2 connecté, 3 non connecté |
+| `lastDisconnectReason` | Code de déconnexion WiFi Espressif (1–24, 200–204) |
+| `network`, `rssi` | SSID et signal en dBm |
+| `currentIp`, `currentMask`, `currentGw` | Adressage en cours |
+| `fwVer` | Version du firmware du module |
+
+### Redémarrage et mise à jour du firmware
+
+Documenté d'après `status.js`, **non exécuté**.
+
+```
+POST /ajax/reboot          → {"result": true}, le module redémarre
+POST /ajax/upgrade         (sans corps) le module télécharge lui-même son firmware
+POST /ajax/check-upg-sts   → {"flag": 1} en cours, {"flag": 2} terminé
+```
+
+`upgrade` n'envoie aucun fichier : le module va chercher la mise à jour sur internet.
+Un poêle bloqué vers internet ne peut donc pas être mis à jour par ce biais.
+
+### Scan des réseaux et connexion
+
+Documenté d'après `networks.js`, **non exécuté** : le scan accepte une option de
+reconnexion et une connexion change de réseau, deux opérations qui peuvent couper le
+module du réseau en cours.
+
+```
+POST /ajax/get-networks    reconnect=…
+     → {"available": [...], "network": "<SSID actuel>"}
+POST /ajax/connect         network=MonReseau&password=motdepasse
+     → {"connected": true} ou {"error": "…"}
+```
+
+### Configuration IP
+
+```
 GET  /ajax/get-dhcp
-POST /ajax/set-dhcp       dhcpEnabled=true|false&staticIp=…&staticMask=…&staticGw=…
+     → {"dhcpEnabled": 1, "staticIp": "0.0.0.0", "staticMask": "0.0.0.0", "staticGw": "0.0.0.0"}
+POST /ajax/set-dhcp        dhcpEnabled=1|0&staticIp=…&staticMask=…&staticGw=…
+     → {"result": true} ou {"error": "…"}
 ```
+
+`get-dhcp` est vérifié. `set-dhcp` est documenté d'après `dhcp.js`, **non exécuté**.
+Quand `dhcpEnabled=1`, l'interface renvoie les adresses statiques déjà stockées sans les
+modifier.
+
+Une page de réglages `settings.html` est prévue par l'interface, mais son bouton est
+commenté dans `status.html` et la page n'existe pas sur ce firmware.
 
 ---
 
