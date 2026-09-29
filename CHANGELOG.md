@@ -10,7 +10,10 @@
 
 ### Documentation
 - `WINET_API.md` : le programme horaire, les statistiques de service et les paramètres d'usine sont documentés, la carte des registres est complétée (versions de firmware, sondes des modèles hydro), et une section liste ce qui reste non élucidé.
-- Correction de deux erreurs : la lecture brute de registres prend les paramètres `startAddr` et `nPoints` (les noms donnés jusqu'ici renvoyaient une erreur qui ressemblait à un refus d'accès), et les endpoints de configuration WiFi et DHCP sont marqués « non vérifié », car ils sont absents du firmware analysé.
+- Correction : la lecture brute de registres prend les paramètres `startAddr` et `nPoints` (les noms donnés jusqu'ici renvoyaient une erreur qui ressemblait à un refus d'accès).
+- Configuration réseau documentée : état WiFi, redémarrage et mise à jour du firmware (page `status.html`), scan et connexion WiFi (`networks.html`), DHCP ou IP fixe (`dhcp.html`), avec les paramètres réels de chaque endpoint.
+
+> **Rectificatif.** La première version de ces notes affirmait que les endpoints WiFi et DHCP étaient absents du firmware. C'était faux : ils sont servis par des pages accessibles depuis l'onglet WI-FI, que l'analyse initiale n'avait pas suivies. La documentation a été corrigée après la publication de la 1.3.0, sans changement de l'intégration.
 
 ## [1.2.1]
 
