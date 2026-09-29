@@ -11,6 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
+from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
 
 from custom_components.thermorossi.const import CMD_OFF, DOMAIN
 
@@ -207,3 +208,55 @@ async def test_unload(hass: HomeAssistant, aioclient_mock, config_entry) -> None
     await _setup(hass, config_entry)
     assert await hass.config_entries.async_unload(config_entry.entry_id)
     assert config_entry.state is ConfigEntryState.NOT_LOADED
+
+
+def _by_category(chrono_status: int = 200):
+    """Mock side effect answering category=1 and category=2 differently."""
+    chrono = {reg: 0 for reg in range(24, 66)}
+    for day in range(7):
+        chrono[24 + 6 * day] = 0x0600  # 06:00
+        chrono[25 + 6 * day] = 0x081E  # 08:30
+    chrono[34], chrono[35] = 0x1200, 0x1600  # Tuesday slot 3: 18:00-22:00
+    calls = {"chrono": 0}
+
+    async def side_effect(method, url, data):
+        if "category=2" in str(data):
+            calls["chrono"] += 1
+            if chrono_status != 200:
+                return AiohttpClientMockResponse(method, url, status=chrono_status)
+            return AiohttpClientMockResponse(
+                method, url, json={"registers": [[k, v] for k, v in chrono.items()]}
+            )
+        return AiohttpClientMockResponse(method, url, json=make_registers())
+
+    return side_effect, calls
+
+
+async def test_weekly_schedule_sensor(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    side_effect, calls = _by_category()
+    aioclient_mock.post(GET_URL, side_effect=side_effect)
+    await _setup(hass, config_entry)
+
+    state = hass.states.get("sensor.thermorossi_weekly_schedule")
+    assert state.state == "8"
+    assert state.attributes["monday"] == ["06:00-08:30"]
+    assert state.attributes["tuesday"] == ["06:00-08:30", "18:00-22:00"]
+
+    # The schedule is cached between regular polls
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+    await hass.async_block_till_done()
+    assert calls["chrono"] == 1
+
+
+async def test_weekly_schedule_failure_keeps_other_entities(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    side_effect, _ = _by_category(chrono_status=500)
+    aioclient_mock.post(GET_URL, side_effect=side_effect)
+    await _setup(hass, config_entry)
+
+    assert config_entry.state is ConfigEntryState.LOADED
+    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "20.0"
+    assert hass.states.get("sensor.thermorossi_weekly_schedule").state == STATE_UNAVAILABLE

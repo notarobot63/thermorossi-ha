@@ -96,6 +96,32 @@
           "probe_stg_disconnected": "Sonde STG déconnectée",
           "unknown": "Alarme inconnue"
         }
+      },
+      "chrono_program": {
+        "name": "Programme hebdomadaire",
+        "state_attributes": {
+          "monday": {
+            "name": "Lundi"
+          },
+          "tuesday": {
+            "name": "Mardi"
+          },
+          "wednesday": {
+            "name": "Mercredi"
+          },
+          "thursday": {
+            "name": "Jeudi"
+          },
+          "friday": {
+            "name": "Vendredi"
+          },
+          "saturday": {
+            "name": "Samedi"
+          },
+          "sunday": {
+            "name": "Dimanche"
+          }
+        }
       }
     },
     "binary_sensor": {

@@ -12,8 +12,11 @@ REFRESH_COOLDOWN = 1.0
 API_GET_REGISTERS = "/ajax/get-registers"
 API_SET_REGISTER = "/ajax/set-register"
 
-# get-registers payload
+# get-registers payloads
 GET_PAYLOAD = "key=020&category=1"
+GET_CHRONO_PAYLOAD = "key=020&category=2"  # Weekly schedule, registers 24–65
+# The schedule rarely changes: read it at most this often (s)
+CHRONO_REFRESH_INTERVAL = 600
 
 # set-register command values (0x5A00 = ON, 0xA500 = OFF - bitwise complements)
 CMD_ON = 23040   # 0x5A00
@@ -31,6 +34,12 @@ REG_PELLET = 10      # Pellet reserve: 0=OK, other=low/empty
 REG_FLAGS = 7        # Flags register: bit0=chrono active, bit6=room control, bit7=eco mode
 REG_FLUE_TEMP = 21   # Flue gas temperature (raw °C, direct value)
 REG_RTC = 22         # Internal RTC clock: bits[13:11]=day(1-7), bits[10:6]=hour, bits[5:0]=minute
+
+# Weekly schedule (category=2): 6 registers per day starting Monday at 24,
+# i.e. 3 slots of (start, stop), each encoded (hour << 8) | minute
+REG_CHRONO_FIRST = 24
+CHRONO_DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+CHRONO_SLOTS_PER_DAY = 3
 
 # Temperature conversion: rawValue * TEMP_MUL + TEMP_OFFSET
 TEMP_MUL = 0.25

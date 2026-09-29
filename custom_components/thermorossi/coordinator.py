@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
@@ -25,6 +26,8 @@ from .const import (
     API_SET_REGISTER,
     API_HEADERS,
     GET_PAYLOAD,
+    GET_CHRONO_PAYLOAD,
+    CHRONO_REFRESH_INTERVAL,
     CMD_ON,
     CMD_OFF,
     SET_KEY,
@@ -49,6 +52,8 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self.host: str = entry.data[CONF_HOST]
         self.base_url = build_base_url(self.host)
         self._fast_poll_cancels: list[Callable[[], None]] = []
+        self._chrono_registers: dict[int, int] = {}
+        self._chrono_fetched_at: float | None = None
         # The WiNET module is a tiny single-threaded HTTP server: serialize
         # every request (reads and writes) to it.
         self._io_lock = asyncio.Lock()
@@ -95,19 +100,38 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
             resp.raise_for_status()
             return await resp.json(content_type=None)
 
-    async def _async_update_data(self) -> dict[int, int]:
-        """Fetch registers from the stove."""
+    async def _fetch_registers(self, payload: str) -> dict[int, int]:
+        """Read one register category from the stove."""
         try:
-            payload = await self._post(API_GET_REGISTERS, GET_PAYLOAD)
+            body = await self._post(API_GET_REGISTERS, payload)
         except (aiohttp.ClientError, TimeoutError) as err:
             raise UpdateFailed(f"Connection error to stove ({self.host}): {err}") from err
         except ValueError as err:
             raise UpdateFailed(f"Invalid response from stove ({self.host}): {err}") from err
 
         try:
-            return parse_registers(payload)
+            return parse_registers(body)
         except ValueError as err:
             raise UpdateFailed(f"Invalid register data from stove ({self.host}): {err}") from err
+
+    async def _async_update_data(self) -> dict[int, int]:
+        """Fetch the runtime registers, plus the weekly schedule when it is due."""
+        registers = await self._fetch_registers(GET_PAYLOAD)
+
+        now = time.monotonic()
+        if (
+            self._chrono_fetched_at is None
+            or now - self._chrono_fetched_at >= CHRONO_REFRESH_INTERVAL
+        ):
+            # The schedule is secondary: a failed read keeps the last known
+            # program and must not make every other entity unavailable.
+            try:
+                self._chrono_registers = await self._fetch_registers(GET_CHRONO_PAYLOAD)
+                self._chrono_fetched_at = now
+            except UpdateFailed as err:
+                _LOGGER.debug("Could not read the weekly schedule: %s", err)
+
+        return {**self._chrono_registers, **registers}
 
     def _schedule_fast_poll(self) -> None:
         """Schedule rapid refreshes after a command: every 1s for 10s, then every 2s up to 30s."""
