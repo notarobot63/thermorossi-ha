@@ -14,6 +14,7 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
 
+from custom_components.thermorossi import _get_entry_device
 from custom_components.thermorossi.const import CMD_OFF, DOMAIN
 from custom_components.thermorossi.diagnostics import async_get_config_entry_diagnostics
 
@@ -203,6 +204,22 @@ async def test_device_identifier_migrated(
     devices = dr.async_entries_for_config_entry(dev_reg, config_entry.entry_id)
     assert [d.id for d in devices] == [old.id]
     assert devices[0].identifiers == {(DOMAIN, config_entry.entry_id)}
+
+
+def test_get_entry_device_prefers_new_api() -> None:
+    """async_get_device is deprecated (breaks in HA 2027.8): use its replacement when present."""
+    calls = []
+
+    class Registry:
+        def async_get_device_by_identifier(self, identifier, config_entry_id):
+            calls.append((identifier, config_entry_id))
+            return "device"
+
+        def async_get_device(self, **kwargs):
+            raise AssertionError("deprecated API used")
+
+    assert _get_entry_device(Registry(), (DOMAIN, HOST), "entry") == "device"
+    assert calls == [((DOMAIN, HOST), "entry")]
 
 
 async def test_unload(hass: HomeAssistant, aioclient_mock, config_entry) -> None:
