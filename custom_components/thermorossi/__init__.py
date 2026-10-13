@@ -18,11 +18,27 @@ def _migrate_device_identifier(hass: HomeAssistant, entry: ThermorossiConfigEntr
     reconfigured.
     """
     dev_reg = dr.async_get(hass)
-    old = dev_reg.async_get_device(identifiers={(DOMAIN, entry.data[CONF_HOST])})
-    if old is None or old.config_entries != {entry.entry_id}:
+    old = _get_entry_device(dev_reg, (DOMAIN, entry.data[CONF_HOST]), entry.entry_id)
+    if old is None:
         return
-    if dev_reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)}) is None:
+    if _get_entry_device(dev_reg, (DOMAIN, entry.entry_id), entry.entry_id) is None:
         dev_reg.async_update_device(old.id, new_identifiers={(DOMAIN, entry.entry_id)})
+
+
+def _get_entry_device(
+    dev_reg: dr.DeviceRegistry, identifier: tuple[str, str], entry_id: str
+) -> dr.DeviceEntry | None:
+    """Return the device with this identifier, owned by this config entry only."""
+    # async_get_device is deprecated (breaks in HA 2027.8) but its replacement
+    # does not exist in older supported releases.
+    # shortcut: fallback for old HA, drop it when hacs.json requires a release with
+    # async_get_device_by_identifier.
+    if hasattr(dev_reg, "async_get_device_by_identifier"):
+        return dev_reg.async_get_device_by_identifier(identifier, entry_id)
+    device = dev_reg.async_get_device(identifiers={identifier})
+    if device is None or device.config_entries != {entry_id}:
+        return None
+    return device
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ThermorossiConfigEntry) -> bool:
