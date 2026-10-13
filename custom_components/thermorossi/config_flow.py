@@ -11,8 +11,21 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, API_GET_REGISTERS, API_HEADERS, GET_PAYLOAD
-from .parsing import build_base_url, is_valid_host, normalize_host, parse_registers
+from .const import (
+    DOMAIN,
+    API_GET_REGISTERS,
+    API_GET_STATUS,
+    API_HEADERS,
+    GET_PAYLOAD,
+    REQUIRED_REGISTERS,
+)
+from .parsing import (
+    build_base_url,
+    check_register_layout,
+    is_valid_host,
+    normalize_host,
+    parse_registers,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -124,11 +137,25 @@ class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
             return "not_json"
 
         try:
-            parse_registers(payload)
+            check_register_layout(parse_registers(payload), REQUIRED_REGISTERS)
         except ValueError as err:
             _LOGGER.warning(
                 # Full body: the only clue for supporting another firmware's format
-                "Unexpected reply from %s (%s), body: %s", url, err, body
+                "Unexpected reply from %s (%s, WiNET firmware %s), body: %s",
+                url, err, await self._firmware_version(host), body,
             )
             return "unexpected_payload"
         return None
+
+    async def _firmware_version(self, host: str) -> str:
+        """Return the module firmware version, best effort (only used in logs)."""
+        try:
+            session = async_get_clientsession(self.hass)
+            async with session.post(
+                f"{build_base_url(host)}{API_GET_STATUS}",
+                headers=API_HEADERS,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                return str((await resp.json(content_type=None))["fwVer"])
+        except (aiohttp.ClientError, TimeoutError, ValueError, KeyError, TypeError):
+            return "unknown"

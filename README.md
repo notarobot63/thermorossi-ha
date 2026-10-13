@@ -129,17 +129,22 @@ integration: entities, history and automations are kept.
 | *Unable to connect* | Nothing answers at this address: wrong IP, stove powered off, or WiNET not on the network. |
 | *HTTP error* | A device answers but returns an HTTP error. Usually the IP of another device (router, box, NAS…). Open `http://<IP>/management.html` in a browser: it must show the WiNET page. |
 | *Not a WiNET module* | A device answers, but not with the WiNET API (HTML page…). Check the IP. |
-| *Unexpected data* | The WiNET module answers, but in a format this integration does not know (other firmware?). |
+| *Unexpected data* | The WiNET module answers, but in a format this integration does not know (other firmware?). The log line gives the WiNET firmware version and the full reply. |
 
-The exact HTTP status and the beginning of the reply are written to the Home
-Assistant log (*Settings → System → Logs*, search `thermorossi`). When opening
-an issue, please include that log line and the output of:
+The exact HTTP status and the reply are written to the Home Assistant log
+(*Settings → System → Logs*, search `thermorossi`). When opening an issue,
+please include that log line and the output of:
 
 ```bash
 curl -i -X POST -H "X-Requested-With: XMLHttpRequest" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "key=020&category=1" http://<IP>/ajax/get-registers
 ```
+
+If the integration was already set up and stops working after a WiNET firmware
+update, attach its diagnostics instead (*Settings → Devices & services →
+Thermorossi → ⋮ → Download diagnostics*): they contain the firmware version and
+the raw replies, with the IP address and WiFi name removed.
 
 ---
 

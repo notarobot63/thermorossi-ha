@@ -23,6 +23,7 @@ from .const import (
     FAST_POLL_DELAYS,
     REFRESH_COOLDOWN,
     API_GET_REGISTERS,
+    API_GET_STATUS,
     API_SET_REGISTER,
     API_HEADERS,
     GET_PAYLOAD,
@@ -35,8 +36,14 @@ from .const import (
     REG_ALARM_LSB,
     REG_ALARM_MSB,
     REG_STATUS,
+    REQUIRED_REGISTERS,
 )
-from .parsing import build_base_url, compute_alarm_code, parse_registers
+from .parsing import (
+    build_base_url,
+    check_register_layout,
+    compute_alarm_code,
+    parse_registers,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +61,9 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self._fast_poll_cancels: list[Callable[[], None]] = []
         self._chrono_registers: dict[int, int] = {}
         self._chrono_fetched_at: float | None = None
+        self.firmware: str | None = None
+        # Raw get-registers replies, by request payload, for diagnostics
+        self.last_payloads: dict[str, Any] = {}
         # The WiNET module is a tiny single-threaded HTTP server: serialize
         # every request (reads and writes) to it.
         self._io_lock = asyncio.Lock()
@@ -100,7 +110,26 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
             resp.raise_for_status()
             return await resp.json(content_type=None)
 
-    async def _fetch_registers(self, payload: str) -> dict[int, int]:
+    async def async_get_module_status(self) -> dict[str, Any]:
+        """Read the WiNET module status (network, firmware version)."""
+        status = await self._post(API_GET_STATUS, "")
+        if not isinstance(status, dict):
+            raise ValueError(f"unexpected get-status reply: {status!r}")
+        return status
+
+    async def _firmware_version(self) -> str:
+        """Return the module firmware version, best effort (only used in messages)."""
+        if self.firmware is None:
+            try:
+                self.firmware = str((await self.async_get_module_status())["fwVer"])
+            except (aiohttp.ClientError, TimeoutError, ValueError, KeyError) as err:
+                _LOGGER.debug("Could not read the WiNET firmware version: %s", err)
+                return "unknown"
+        return self.firmware
+
+    async def _fetch_registers(
+        self, payload: str, required: tuple[int, ...] = ()
+    ) -> dict[int, int]:
         """Read one register category from the stove."""
         try:
             body = await self._post(API_GET_REGISTERS, payload)
@@ -109,14 +138,20 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         except ValueError as err:
             raise UpdateFailed(f"Invalid response from stove ({self.host}): {err}") from err
 
+        self.last_payloads[payload] = body
         try:
-            return parse_registers(body)
+            registers = parse_registers(body)
+            check_register_layout(registers, required)
         except ValueError as err:
-            raise UpdateFailed(f"Invalid register data from stove ({self.host}): {err}") from err
+            raise UpdateFailed(
+                f"Unsupported data from stove ({self.host}, WiNET firmware "
+                f"{await self._firmware_version()}): {err}"
+            ) from err
+        return registers
 
     async def _async_update_data(self) -> dict[int, int]:
         """Fetch the runtime registers, plus the weekly schedule when it is due."""
-        registers = await self._fetch_registers(GET_PAYLOAD)
+        registers = await self._fetch_registers(GET_PAYLOAD, REQUIRED_REGISTERS)
 
         now = time.monotonic()
         if (

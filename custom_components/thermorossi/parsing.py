@@ -71,6 +71,17 @@ def parse_registers(payload: object) -> dict[int, int]:
     return result
 
 
+def check_register_layout(registers: Mapping[int, int], required: tuple[int, ...]) -> None:
+    """Raise ValueError if registers the entities rely on are missing.
+
+    A WiNET firmware with another register layout would otherwise show
+    plausible-looking but wrong values.
+    """
+    missing = [reg for reg in required if reg not in registers]
+    if missing:
+        raise ValueError(f"unknown register layout, missing registers {missing}")
+
+
 def compute_alarm_code(msb: int, lsb: int) -> int:
     """Combine the two 16-bit alarm registers into a single 32-bit code."""
     return (msb << 16) | lsb

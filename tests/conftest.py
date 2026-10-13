@@ -10,6 +10,7 @@ from custom_components.thermorossi.const import DOMAIN
 HOST = "192.168.1.100"
 GET_URL = f"http://{HOST}/ajax/get-registers"
 SET_URL = f"http://{HOST}/ajax/set-register"
+STATUS_URL = f"http://{HOST}/ajax/get-status"
 
 
 def make_registers(**overrides: int) -> dict:

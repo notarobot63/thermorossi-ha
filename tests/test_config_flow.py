@@ -10,7 +10,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.thermorossi.const import DOMAIN
 
-from .conftest import GET_URL, HOST, make_registers
+from .conftest import GET_URL, HOST, STATUS_URL, make_registers
 
 
 async def _start(hass: HomeAssistant, host: str) -> dict:
@@ -39,17 +39,32 @@ async def test_user_flow_success(hass: HomeAssistant, aioclient_mock) -> None:
         ({"text": "<html>router login</html>"}, "not_json"),
         ({"json": {"other": 1}}, "unexpected_payload"),
         ({"json": {"registers": [[0, "x"]]}}, "unexpected_payload"),
+        ({"json": {"registers": [[0, 1], [1, 2]]}}, "unexpected_payload"),
     ],
 )
 async def test_user_flow_errors(
     hass: HomeAssistant, aioclient_mock, mock_kwargs, error, caplog
 ) -> None:
     aioclient_mock.post(GET_URL, **mock_kwargs)
+    aioclient_mock.post(STATUS_URL, json={"fwVer": "0.73"})
     result = await _start(hass, HOST)
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": error}
     # Every failure must leave something in the logs to diagnose it
     assert GET_URL in caplog.text
+
+
+async def test_user_flow_unknown_firmware_is_logged(
+    hass: HomeAssistant, aioclient_mock, caplog
+) -> None:
+    """Firmware 0.79 answers with 'params': the log must give all it takes to support it."""
+    body = {"key": "020", "params": [[0, 39], [50, 21], [61, 86]], "cat": 1, "numPower": 5}
+    aioclient_mock.post(GET_URL, json=body)
+    aioclient_mock.post(STATUS_URL, json={"fwVer": "0.79", "rssi": -60})
+    result = await _start(hass, HOST)
+    assert result["errors"] == {"base": "unexpected_payload"}
+    assert "WiNET firmware 0.79" in caplog.text
+    assert '"numPower":5' in caplog.text
 
 
 async def test_user_flow_invalid_host(hass: HomeAssistant) -> None:
