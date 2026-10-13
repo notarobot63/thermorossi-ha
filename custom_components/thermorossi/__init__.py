@@ -30,9 +30,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ThermorossiConfigEntry) 
     _migrate_device_identifier(hass, entry)
 
     coordinator = ThermorossiCoordinator(hass, entry)
+    # Attached before the first refresh so diagnostics (raw replies, firmware)
+    # stay available when setup fails on an unsupported firmware.
+    entry.runtime_data = coordinator
     await coordinator.async_config_entry_first_refresh()
 
-    entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

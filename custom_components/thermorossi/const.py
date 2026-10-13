@@ -11,6 +11,7 @@ REFRESH_COOLDOWN = 1.0
 # API endpoints
 API_GET_REGISTERS = "/ajax/get-registers"
 API_SET_REGISTER = "/ajax/set-register"
+API_GET_STATUS = "/ajax/get-status"  # Network state and module firmware (fwVer)
 
 # get-registers payloads
 GET_PAYLOAD = "key=020&category=1"
@@ -34,6 +35,8 @@ REG_PELLET = 10      # Pellet reserve: 0=OK, other=low/empty
 REG_FLAGS = 7        # Flags register: bit0=chrono active, bit6=room control, bit7=eco mode
 REG_FLUE_TEMP = 21   # Flue gas temperature (raw °C, direct value)
 REG_RTC = 22         # Internal RTC clock: bits[13:11]=day(1-7), bits[10:6]=hour, bits[5:0]=minute
+# Registers that must be present, or the firmware uses another layout
+REQUIRED_REGISTERS = (REG_STATUS, REG_SET_TEMP, REG_AIR_TEMP)
 
 # Weekly schedule (category=2): 6 registers per day starting Monday at 24,
 # i.e. 3 slots of (start, stop), each encoded (hour << 8) | minute

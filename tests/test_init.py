@@ -4,8 +4,9 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
+from homeassistant.components.diagnostics import REDACTED
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.const import CONF_HOST, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -14,8 +15,9 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
 
 from custom_components.thermorossi.const import CMD_OFF, DOMAIN
+from custom_components.thermorossi.diagnostics import async_get_config_entry_diagnostics
 
-from .conftest import GET_URL, HOST, SET_URL, make_registers
+from .conftest import GET_URL, HOST, SET_URL, STATUS_URL, make_registers
 
 
 async def _setup(hass: HomeAssistant, entry) -> None:
@@ -260,3 +262,49 @@ async def test_weekly_schedule_failure_keeps_other_entities(
     assert config_entry.state is ConfigEntryState.LOADED
     assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "20.0"
     assert hass.states.get("sensor.thermorossi_weekly_schedule").state == STATE_UNAVAILABLE
+
+
+async def test_unknown_register_layout_names_firmware(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    aioclient_mock.post(GET_URL, json={"registers": [[0, 39], [50, 21]]})
+    aioclient_mock.post(STATUS_URL, json={"fwVer": "0.79"})
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert "WiNET firmware 0.79" in config_entry.reason
+    assert "[6, 15, 16]" in config_entry.reason
+
+
+async def test_diagnostics(hass: HomeAssistant, aioclient_mock, config_entry) -> None:
+    aioclient_mock.post(GET_URL, json=make_registers())
+    aioclient_mock.post(
+        STATUS_URL,
+        json={"fwVer": "0.73", "currentIp": "192.168.1.100", "network": "MonReseau"},
+    )
+    await _setup(hass, config_entry)
+
+    diag = await async_get_config_entry_diagnostics(hass, config_entry)
+    assert diag["entry"][CONF_HOST] == REDACTED
+    assert diag["module_status"]["fwVer"] == "0.73"
+    assert diag["module_status"]["currentIp"] == REDACTED
+    assert diag["module_status"]["network"] == REDACTED
+    assert diag["raw_replies"]["key=020&category=1"] == make_registers()
+    assert diag["registers"][6] == 3
+
+
+async def test_diagnostics_when_setup_failed(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """After a firmware update breaks setup, diagnostics must still hold the raw reply."""
+    body = {"key": "020", "params": [[0, 39]], "cat": 1}
+    aioclient_mock.post(GET_URL, json=body)
+    aioclient_mock.post(STATUS_URL, json={"fwVer": "0.79"})
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+
+    diag = await async_get_config_entry_diagnostics(hass, config_entry)
+    assert diag["module_status"]["fwVer"] == "0.79"
+    assert diag["raw_replies"]["key=020&category=1"] == body
+    assert diag["registers"] is None

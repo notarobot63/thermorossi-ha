@@ -62,6 +62,16 @@ class ParseRegistersTests(unittest.TestCase):
             parsing.parse_registers({"registers": [[True, 10]]})
 
 
+class CheckRegisterLayoutTests(unittest.TestCase):
+    def test_accepts_known_layout(self) -> None:
+        parsing.check_register_layout({6: 3, 15: 160, 16: 152, 21: 120}, (6, 15, 16))
+
+    def test_rejects_missing_required_register(self) -> None:
+        # Shape of a firmware 0.79 reply once parsed: none of the known registers
+        with self.assertRaisesRegex(ValueError, r"\[6, 15, 16\]"):
+            parsing.check_register_layout({0: 39, 50: 21, 61: 86}, (6, 15, 16))
+
+
 class ComputeAlarmCodeTests(unittest.TestCase):
     def test_combines_msb_and_lsb(self) -> None:
         self.assertEqual(parsing.compute_alarm_code(msb=0x0001, lsb=0x0002), 0x00010002)
