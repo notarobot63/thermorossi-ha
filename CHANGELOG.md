@@ -1,5 +1,10 @@
 # Changelog
 
+## [Non publié]
+
+### Corrections
+- Quand le module WiNET répond dans un format inconnu (signalé sur le firmware 0.79), le journal affiche désormais la réponse complète au lieu de ses 300 premiers caractères, pour pouvoir prendre en charge ce format.
+
 ## [1.3.0]
 
 ### Ajouts

@@ -127,7 +127,8 @@ class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
             parse_registers(payload)
         except ValueError as err:
             _LOGGER.warning(
-                "Unexpected reply from %s (%s), body: %.300s", url, err, body
+                # Full body: the only clue for supporting another firmware's format
+                "Unexpected reply from %s (%s), body: %s", url, err, body
             )
             return "unexpected_payload"
         return None
