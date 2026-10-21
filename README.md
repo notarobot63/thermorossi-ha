@@ -6,7 +6,7 @@
 >
 > Remember: if you don't like projects coded with AI help don't use them ;-)
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 ![HA min version](https://img.shields.io/badge/HA-2024.11%2B-blue)
 ![Languages](https://img.shields.io/badge/languages-EN%20%7C%20FR%20%7C%20IT-green)
 
@@ -93,16 +93,11 @@ fan and setpoint sliders are unavailable in this state.
 
 ### Via HACS (recommended)
 
-The integration is not (yet) in the HACS default store: add it as a custom repository.
+1. Open **HACS** and search for **Thermorossi**
+2. Select **Thermorossi WiNET** and **Download** it
+3. Restart Home Assistant
 
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=notarobot63&repository=thermorossi-ha&category=integration)
-
-Or manually:
-
-1. Open **HACS**, then **⋮** (top right) → **Custom repositories**
-2. Repository: `https://github.com/notarobot63/thermorossi-ha`, Type: **Integration** → **Add**
-3. Search for **Thermorossi WiNET** in HACS and **Download** it
-4. Restart Home Assistant
 
 ### Manual
 
