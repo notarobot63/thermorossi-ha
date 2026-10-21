@@ -1,6 +1,6 @@
 # Changelog
 
-## [Non publié]
+## [1.4.0]
 
 ### Ajouts
 - **Diagnostics** (*⋮ → Télécharger les diagnostics*) : version du firmware WiNET, réponses brutes du module et registres décodés, sans l'adresse IP ni le nom du réseau WiFi. Ils restent disponibles quand l'intégration ne démarre plus après une mise à jour du firmware.
@@ -9,6 +9,9 @@
 - Quand le module WiNET répond dans un format inconnu (signalé sur le firmware 0.79), le journal affiche désormais la réponse complète au lieu de ses 300 premiers caractères, ainsi que la version du firmware.
 - Plus d'avertissement de dépréciation au démarrage : la recherche de l'appareil utilise `async_get_device_by_identifier` quand Home Assistant le fournit (l'ancien appel cessera de fonctionner en 2027.8).
 - Un firmware qui renvoie bien une liste de registres, mais sans l'état, la consigne ou la température ambiante, est refusé avec un message qui cite sa version, au lieu d'afficher des valeurs fausses.
+
+### Documentation
+- L'intégration fait maintenant partie du catalogue par défaut de HACS : la section Installation du README indique simplement de chercher « Thermorossi » dans HACS, sans ajouter de dépôt personnalisé.
 
 ## [1.3.0]
 
