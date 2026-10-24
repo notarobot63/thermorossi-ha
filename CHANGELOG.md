@@ -1,10 +1,11 @@
 # Changelog
 
-## [Non publié]
+## [1.4.1]
 
 ### Documentation
 - README : section *Supported firmware* (0.73 pris en charge, 0.79 pas encore) avec la façon de lire la version du firmware, et section *Troubleshooting* regroupée et complétée : erreur d'adresse invalide, procédure de capture HAR pour un firmware non pris en charge, valeurs qui semblent fausses (température ambiante absente, programme décalé par l'horloge du poêle, commandes lentes à s'appliquer, module saturé).
 - README : le capteur *Weekly schedule* manquait dans la liste des entités.
+- Exemples d'automatisations : les notifications passent par `notify.notify` (le notificateur par défaut de Home Assistant) au lieu d'un `rest_command` Signal à configurer.
 - `WINET_API.md` : nouvelle section sur le firmware 0.79 (format `params`, écriture avec `memory=1`, consigne en `50`, puissance en `51`, marche/arrêt par bascule `key=022`) et liste de ce qui reste à élucider.
 
 ## [1.4.0]
