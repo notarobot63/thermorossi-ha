@@ -221,7 +221,7 @@ Two ready-to-use card configurations are included:
 
 > The automations and cards use the French entity IDs - see [Entity IDs](#entity-ids).
 >
-> Notifications use `rest_command.signal_notify` (Signal via SignalMe) by default - adapt to your setup (`notify.mobile_app_*`, `notify.ntfy`, etc.). See the header comment in `automations.yaml` for the required `rest_command` config.
+> Notifications use `notify.notify` (your default notifier) - replace it with the service you use (`notify.mobile_app_*`, `notify.ntfy`, etc.).
 
 ---
 

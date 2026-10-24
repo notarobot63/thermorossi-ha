@@ -1,4 +1,4 @@
-# Thermorossi - Automations (Signal notifications via SignalMe)
+# Thermorossi - Example automations (notifications)
 #
 # Requires Home Assistant 2024.10+ (triggers/actions syntax, state_translated).
 #
@@ -14,14 +14,9 @@
 #
 # Check yours in Settings → Devices & services → Thermorossi.
 #
-# Prerequisites - add to configuration.yaml:
-#
-#   rest_command:
-#     signal_notify:
-#       url: "http://<signalme-host>:<port>/webhook/<source-slug>"
-#       method: POST
-#       content_type: "application/json"
-#       payload: '{"message": "{{ message }}"}'
+# Notifications use `notify.notify`, which sends to your default notifier
+# (the Home Assistant companion app, for instance). Replace it with the
+# service you use: notify.mobile_app_<your_phone>, notify.ntfy, ...
 
 # ─────────────────────────────────────────────────────────────────
 # 1. GENERAL ALARM (any alarm bit set - reg[8]+reg[9])
@@ -33,7 +28,7 @@
       entity_id: binary_sensor.thermorossi_alarme
       to: "on"
   actions:
-    - action: rest_command.signal_notify
+    - action: notify.notify
       data:
         message: >-
           🔥 Thermorossi - Alarme : {{ state_translated('sensor.thermorossi_message_alarme') }}
@@ -48,7 +43,7 @@
       entity_id: binary_sensor.thermorossi_arret_erreur
       to: "on"
   actions:
-    - action: rest_command.signal_notify
+    - action: notify.notify
       data:
         message: >-
           🛑 Thermorossi - Poêle arrêté sur erreur.
@@ -65,7 +60,7 @@
       entity_id: binary_sensor.thermorossi_pellets_insuffisants
       to: "on"
   actions:
-    - action: rest_command.signal_notify
+    - action: notify.notify
       data:
         message: "🪵 Thermorossi - Réserve de pellets vide. Remplissez le bac."
 
@@ -80,6 +75,6 @@
       from: "start"
       to: "stop"
   actions:
-    - action: rest_command.signal_notify
+    - action: notify.notify
       data:
         message: "⚠️ Thermorossi - Allumage échoué. Le brûleur doit être nettoyé."
