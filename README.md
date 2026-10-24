@@ -12,7 +12,7 @@
 
 Local polling integration for **Thermorossi** pellet stoves equipped with the **WiNET** WiFi module (Micronova).
 
-> Only tested on a Thermorossi stove (WiNET firmware 0.73). Other brands using a Micronova-based WiNET module may work but are **untested** - feedback welcome.
+> Only tested on a Thermorossi stove (WiNET firmware 0.73). Other brands using a Micronova-based WiNET module may work but are **untested** - feedback welcome. See [Supported firmware](#supported-firmware).
 
 No cloud. No account. Direct HTTP communication on your local network.
 
@@ -28,6 +28,7 @@ No cloud. No account. Direct HTTP communication on your local network.
 | Alarm message | `sensor` | First active alarm, or "OK" (enum) |
 | Flue temperature | `sensor` | Flue gas temperature (°C) - diagnostic |
 | Internal clock | `sensor` | Stove RTC clock `HH:MM`, `weekday` attribute (1 = Monday) - diagnostic |
+| Weekly schedule | `sensor` | Number of programmed chrono slots, each weekday's `HH:MM-HH:MM` slots as attributes (refreshed every 10 min) - diagnostic |
 | Temperature setpoint | `sensor` | Read-only setpoint - *disabled by default* (use the `number`) |
 | Power level | `sensor` | Read-only power level - *disabled by default* (use the `number`) |
 | Fan speed | `sensor` | Read-only fan speed - *disabled by default* (use the `number`) |
@@ -87,6 +88,19 @@ fan and setpoint sliders are unavailable in this state.
 - Thermorossi (or compatible) pellet stove with the **WiNET WiFi module** connected to your local network
 - The stove's local IP address (assign a static DHCP lease for reliability)
 
+### Supported firmware
+
+The WiNET firmware version is shown in the module's web page (*WI-FI* tab) and
+in the integration diagnostics. It can also be read with
+`curl -X POST -H "X-Requested-With: XMLHttpRequest" http://<IP>/ajax/get-status`
+(field `fwVer`).
+
+| WiNET firmware | Status |
+|----------------|--------|
+| 0.73 | ✅ Supported (developed and tested on it) |
+| 0.79 | ❌ Not supported yet. This firmware uses a different API (a short `params` list instead of the register map), so setup stops with *Unexpected data*. Support is being worked on with a user who owns one: see [Unsupported firmware](#unsupported-firmware) if you can help. |
+| Other | Unknown. If setup works, all entities should behave as described; if not, please open an issue. |
+
 ---
 
 ## Installation
@@ -117,10 +131,15 @@ The integration will verify connectivity before saving.
 If the stove's IP address changes later, use **⋮ → Reconfigure** on the
 integration: entities, history and automations are kept.
 
-### Troubleshooting setup errors
+---
+
+## Troubleshooting
+
+### Setup errors
 
 | Error | Meaning |
 |-------|---------|
+| *Invalid host or IP address* | The value entered is not a valid hostname or IP address. Enter the address only, without `http://` or a path. |
 | *Unable to connect* | Nothing answers at this address: wrong IP, stove powered off, or WiNET not on the network. |
 | *HTTP error* | A device answers but returns an HTTP error. Usually the IP of another device (router, box, NAS…). Open `http://<IP>/management.html` in a browser: it must show the WiNET page. |
 | *Not a WiNET module* | A device answers, but not with the WiNET API (HTML page…). Check the IP. |
@@ -136,10 +155,42 @@ curl -i -X POST -H "X-Requested-With: XMLHttpRequest" \
   -d "key=020&category=1" http://<IP>/ajax/get-registers
 ```
 
-If the integration was already set up and stops working after a WiNET firmware
-update, attach its diagnostics instead (*Settings → Devices & services →
-Thermorossi → ⋮ → Download diagnostics*): they contain the firmware version and
-the raw replies, with the IP address and WiFi name removed.
+### The integration stops working after a firmware update
+
+Attach the diagnostics to your issue (*Settings → Devices & services →
+Thermorossi → ⋮ → Download diagnostics*). They contain the firmware version and
+the raw replies, with the IP address and WiFi name removed, and remain
+available while the integration is retrying to start.
+
+### Unsupported firmware
+
+If setup fails with *Unexpected data*, your firmware speaks a different dialect
+of the WiNET API. To add support, the integration needs to know how the
+module's own web page reads and controls the stove. The most useful thing to
+send is a recording of that page (a HAR file):
+
+1. Open `http://<IP>/management.html` in Chrome, Edge or Firefox.
+2. Open the developer tools (`F12`), go to the **Network** tab and tick
+   **Disable cache**.
+3. **Reload the page** while the developer tools are open. This is essential:
+   the page's scripts contain the table that gives the meaning of each value,
+   and they are only recorded if the page loads during the recording.
+4. Use the page as you normally would: turn the stove on, change the setpoint
+   and the power level, then turn it off. Wait a few seconds between actions.
+5. Right-click in the list of requests → **Save all as HAR**.
+
+The HAR contains your module's local IP address and WiFi network name. Share it
+privately if you prefer, rather than attaching it to a public issue. Also note
+the stove model and, if you can, what the stove's display showed at each step.
+
+### Values that look wrong
+
+| Symptom | Explanation |
+|---------|-------------|
+| *Ambient temperature* is unavailable | The stove only measures room temperature with the optional room control module. Without it, the value is unavailable. |
+| The weekly schedule fires on the wrong day or at the wrong time | The stove applies its schedule with its own clock (*Internal clock* sensor, `weekday` attribute: 1 = Monday), not with Home Assistant's. If that clock or its weekday has drifted, set it again on the stove's display. |
+| A command seems to have no effect | The module accepts commands immediately, but the stove takes a few seconds to apply them. After any command the integration polls every 1-2 s for about 30 s, then every 30 s. |
+| The module stops answering for a few seconds | Above roughly 20 requests per second the module saturates. Avoid running other tools that poll it in a tight loop alongside the integration. |
 
 ---
 
@@ -177,6 +228,7 @@ Two ready-to-use card configurations are included:
 ## Protocol
 
 - **Transport**: HTTP (local network only, no TLS - WiNET firmware limitation)
+- **Full API notes**: [WINET_API.md](WINET_API.md) (in French), written against firmware 0.73, with what is known so far about 0.79
 - **Polling interval**: 30 seconds (background), 1 s × 10 + 2 s × 10 after any command (on/off, power, fan, setpoint)
 - **API**: `POST /ajax/get-registers` and `POST /ajax/set-register`
 - **ON/OFF values**: `23040` (0x5A00) and `42240` (0xA500) - bitwise complements (industrial safety pattern)
