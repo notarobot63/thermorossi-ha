@@ -98,8 +98,8 @@ in the integration diagnostics. It can also be read with
 | WiNET firmware | Status |
 |----------------|--------|
 | 0.73 | ✅ Supported (developed and tested on it) |
-| 0.79 | ❌ Not supported yet. This firmware uses a different API (a short `params` list instead of the register map), so setup stops with *Unexpected data*. Support is being worked on with a user who owns one: see [Unsupported firmware](#unsupported-firmware) if you can help. |
-| Other | Unknown. If setup works, all entities should behave as described; if not, please open an issue. |
+| 0.17, 0.43, 0.79 | ❌ Not supported yet. These firmwares use a different API (a short `params` list instead of the register map), so setup stops with *Unexpected data*. The same format has been reported on Thermorossi and on other brands (e.g. Stufe a Pellet Italia). Support is being worked on: see [Unsupported firmware](#unsupported-firmware) if you can help. |
+| Other | Unknown. If setup works, all entities should behave as described; if not, please open an issue with the log line described below. |
 
 ---
 
@@ -165,23 +165,48 @@ available while the integration is retrying to start.
 ### Unsupported firmware
 
 If setup fails with *Unexpected data*, your firmware speaks a different dialect
-of the WiNET API. To add support, the integration needs to know how the
-module's own web page reads and controls the stove. The most useful thing to
-send is a recording of that page (a HAR file):
+of the WiNET API. A reply starting with `{"params":[[...` (or `{"params":[]`)
+is the `params` format listed in [Supported firmware](#supported-firmware).
+
+What is already known about the `params` format (details in
+[WINET_API.md](WINET_API.md)):
+
+- values are `[id, value]` pairs with their own numbering: id 50 is the
+  setpoint (°C) and id 51 the power level, both written with
+  `key=002&memory=1&regId=<id>&value=<value>`;
+- on/off seems to be a single **toggle** command (`key=022`): it turns the
+  stove on if it is off and off if it is on, so it can only be sent safely once
+  the stove state is decoded;
+- the meaning of the other ids (stove state, alarms, temperatures) is still
+  unknown. It is defined in the module's own web page, which is why a recording
+  of that page is needed.
+
+**1. Open an issue** with the WiNET firmware version, the stove brand and model,
+and the full log line (*Settings → System → Logs*, entry from
+`custom_components.thermorossi.config_flow`). It contains the firmware version
+and the module's complete reply.
+
+**2. Record the module's web page** (a HAR file):
 
 1. Open `http://<IP>/management.html` in Chrome, Edge or Firefox.
 2. Open the developer tools (`F12`), go to the **Network** tab and tick
    **Disable cache**.
 3. **Reload the page** while the developer tools are open. This is essential:
-   the page's scripts contain the table that gives the meaning of each value,
-   and they are only recorded if the page loads during the recording.
-4. Use the page as you normally would: turn the stove on, change the setpoint
-   and the power level, then turn it off. Wait a few seconds between actions.
-5. Right-click in the list of requests → **Save all as HAR**.
+   `management.html` and `management.js` contain the table that gives the
+   meaning of each value, and they are only recorded if the page loads during
+   the recording. A capture made without reloading only contains raw numbers.
+4. In this order, waiting a few seconds between actions: turn the stove on,
+   let it heat for a few minutes, change the setpoint, change the power level,
+   then turn it off.
+5. Right-click in the list of requests → **Save all as HAR**, then zip it
+   (GitHub does not accept `.har` files directly).
+
+If the stove ever shows an alarm or runs out of pellets, a short capture at that
+moment (with a page reload) is just as useful: it shows how these states are
+encoded. Also note, if you can, what the stove's display showed at each step.
 
 The HAR contains your module's local IP address and WiFi network name. Share it
-privately if you prefer, rather than attaching it to a public issue. Also note
-the stove model and, if you can, what the stove's display showed at each step.
+privately if you prefer, rather than attaching it to a public issue.
 
 ### Values that look wrong
 
@@ -228,7 +253,7 @@ Two ready-to-use card configurations are included:
 ## Protocol
 
 - **Transport**: HTTP (local network only, no TLS - WiNET firmware limitation)
-- **Full API notes**: [WINET_API.md](WINET_API.md) (in French), written against firmware 0.73, with what is known so far about 0.79
+- **Full API notes**: [WINET_API.md](WINET_API.md) (in French), written against firmware 0.73, with what is known so far about the `params` format (0.17, 0.43, 0.79)
 - **Polling interval**: 30 seconds (background), 1 s × 10 + 2 s × 10 after any command (on/off, power, fan, setpoint)
 - **API**: `POST /ajax/get-registers` and `POST /ajax/set-register`
 - **ON/OFF values**: `23040` (0x5A00) and `42240` (0xA500) - bitwise complements (industrial safety pattern)

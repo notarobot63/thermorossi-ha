@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.2]
+
+### Documentation
+- README : le format `params` non pris en charge est signalé sur les firmwares 0.17, 0.43 et 0.79, et sur d'autres marques que Thermorossi (Stufe a Pellet Italia).
+- README, section *Unsupported firmware* : comment reconnaître ce format, ce qui en est déjà connu (consigne `50`, puissance `51`, marche/arrêt par bascule `key=022`), les informations à joindre à une issue et une procédure de capture HAR plus précise (rechargement de la page indispensable, ordre des actions, capture en cas d'alarme, HAR à zipper).
+
 ## [1.4.1]
 
 ### Documentation
