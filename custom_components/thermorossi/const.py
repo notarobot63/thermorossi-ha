@@ -131,10 +131,14 @@ PARAM_RTC_HOUR = 60    # Stove clock: hour, BCD
 PARAM_RTC_MINUTE = 61  # Stove clock: minute, BCD
 PARAMS_REQUIRED = (PARAM_STATUS, PARAM_SET_TEMP, PARAM_POWER)
 
-# Setpoint raw range of the official page (scaled by setTempDiv)
-PARAMS_SET_TEMP_RAW_MIN = 5
-PARAMS_SET_TEMP_RAW_MAX = 40
+# Setpoint range of the official page, in °C (the page divides it by
+# setTempDiv to get the raw bounds)
+PARAMS_SET_TEMP_MIN = 5
+PARAMS_SET_TEMP_MAX = 40
 PARAMS_DEFAULT_NUM_POWER = 5
+# Customization code (model variant) whose tables are decoded here; the page
+# switches tables for about a hundred other codes
+PARAMS_DEFAULT_CUSTOM = 65535
 
 PARAMS_STATUS_CODES = {
     0: "off",

@@ -19,8 +19,8 @@ from .const import (
     TEMP_OFFSET,
     PARAM_POWER,
     PARAM_SET_TEMP,
-    PARAMS_SET_TEMP_RAW_MAX,
-    PARAMS_SET_TEMP_RAW_MIN,
+    PARAMS_SET_TEMP_MAX,
+    PARAMS_SET_TEMP_MIN,
 )
 from .coordinator import ThermorossiConfigEntry
 from .entity import ThermorossiEntity
@@ -132,16 +132,10 @@ class ThermorossiParamsSetTempNumber(ThermorossiBaseNumber):
     _attr_translation_key = "set_temperature"
     _attr_device_class = NumberDeviceClass.TEMPERATURE
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_native_min_value = PARAMS_SET_TEMP_MIN
+    _attr_native_max_value = PARAMS_SET_TEMP_MAX
     _register = PARAM_SET_TEMP
     _error_message = "Failed to set target temperature on the stove"
-
-    @property
-    def native_min_value(self) -> float:
-        return PARAMS_SET_TEMP_RAW_MIN * self.coordinator.set_temp_div
-
-    @property
-    def native_max_value(self) -> float:
-        return PARAMS_SET_TEMP_RAW_MAX * self.coordinator.set_temp_div
 
     @property
     def native_step(self) -> float:

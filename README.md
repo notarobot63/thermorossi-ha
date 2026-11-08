@@ -116,16 +116,26 @@ only the entities this firmware provides:
 | Ambient temperature (`sensor`) | |
 | Alarm message (`sensor`), Alarm and Error stop (`binary_sensor`) | Only in the `alarm` and `alarm_memory` states, like the official page |
 | Internal clock (`sensor`) | Diagnostic |
-| Temperature setpoint, Power level (`number`) | Range and step taken from the module (power 1 to 5 on the tested stove) |
+| Temperature setpoint, Power level (`number`) | Setpoint 5–40 °C, step taken from the module; power 1 to the module's maximum (5 on the tested stove). Unavailable in the `alarm` states |
+| Temperature setpoint, Power level (`sensor`) | Read-only duplicates, *disabled by default* |
 
 Fan speed, flue temperature, pellets, chrono and weekly schedule are not
-available on this firmware.
+available on this firmware: cards and automations that use them need adapting.
+
+The module also reports a model variant (`custom` field). Only the default one
+(65535) has been decoded; on another variant, states and alarms may be named
+wrongly, and a warning is written to the log once. Please open an issue with a
+recording of the module's web page (see [Unsupported firmware](#unsupported-firmware))
+if that happens.
 
 On/off is a single **toggle** command on this firmware. The integration only
 sends it when it moves the stove the requested way: turning on a stove that
 is not off, or turning off a stove that is off or in final cleaning, does
-nothing. Turning on during the final cleaning is refused, as on the official
-page. In the `alarm` states, turning the switch off acknowledges the alarm.
+nothing. While a toggle has not yet shown in the stove state (up to 15 s), a
+request in the same direction does nothing and the opposite one is refused, so
+two quick commands cannot cancel each other. Turning on during the final
+cleaning is refused, as on the official page. In the `alarm` states, turning
+the switch off acknowledges the alarm.
 
 ---
 
@@ -269,7 +279,7 @@ Two ready-to-use card configurations are included:
 ## Protocol
 
 - **Transport**: HTTP (local network only, no TLS - WiNET firmware limitation)
-- **Full API notes**: [WINET_API.md](WINET_API.md) (in French), written against firmware 0.73, with what is known so far about the `params` format (0.17, 0.43, 0.79)
+- **Full API notes**: [WINET_API.md](WINET_API.md) (in French), written against firmware 0.73, and a section on the `params` format of firmware 0.79 (decoding table, toggle command)
 - **Polling interval**: 30 seconds (background), 1 s × 10 + 2 s × 10 after any command (on/off, power, fan, setpoint)
 - **API**: `POST /ajax/get-registers` and `POST /ajax/set-register`
 - **ON/OFF values**: `23040` (0x5A00) and `42240` (0xA500) - bitwise complements (industrial safety pattern)

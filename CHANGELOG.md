@@ -1,10 +1,23 @@
 # Changelog
 
+## [1.5.1]
+
+### Corrections (format `params`, firmware 0.79)
+- Consigne : la plage est de 5 à 40 °C quel que soit le pas. Sur un poêle au demi-degré (`setTempDiv` 0,5), elle était limitée à tort à 2,5-20 °C.
+- Marche/arrêt : deux commandes simultanées (une automatisation et l'interface, par exemple) ne peuvent plus envoyer deux bascules qui s'annulent.
+- Marche/arrêt : une demande contraire envoyée avant que la précédente soit visible dans l'état du poêle est refusée avec un message d'erreur, au lieu d'être ignorée sans prévenir.
+- Un module qui annonce une variante de modèle (`custom`) autre que celle décodée écrit un avertissement dans le journal : ses états et alarmes peuvent être mal nommés.
+- Un `numPower` incohérent dans la réponse du module ne peut plus donner une puissance maximale de 0.
+- Le message d'erreur d'un format inconnu cite les deux formats acceptés (`registers` ou `params`).
+
+### Documentation
+- README, section *Firmware 0.79* : capteurs en lecture seule désactivés par défaut, consigne et puissance indisponibles en alarme, entités absentes à adapter dans les cartes et automatisations, variante de modèle, comportement de la bascule.
+
 ## [1.5.0]
 
 ### Ajouts
 - **Prise en charge du format `params`** (firmware WiNET 0.79, issues #2 et #4). Le module y parle un autre dialecte de l'API, détecté automatiquement à la première lecture. Le même format est signalé sur les firmwares 0.17 et 0.43 : ils devraient fonctionner aussi, sans confirmation à ce jour. Entités disponibles : poêle (marche/arrêt), état, température ambiante, message d'alarme, alarme, arrêt sur erreur, horloge interne, consigne et puissance réglables. Le décodage vient du script de la page officielle du module (`management.js`), recoupé avec l'enregistrement d'un utilisateur.
-  - La marche/arrêt de ce firmware est une bascule : l'intégration ne l'envoie que si elle va dans le sens demandé, et jamais deux fois de suite avant que l'état du poêle ait changé.
+  - La marche/arrêt de ce firmware est une bascule : l'intégration ne l'envoie que si elle va dans le sens demandé, et pas une seconde fois tant que l'état du poêle n'a pas changé (15 s au plus).
   - Si le firmware du module change pendant que Home Assistant tourne, l'intégration se recharge pour recréer les bonnes entités.
 
 ### Corrections

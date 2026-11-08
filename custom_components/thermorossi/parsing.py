@@ -54,7 +54,7 @@ def detect_dialect(payload: object) -> str:
         for dialect in ("registers", "params"):
             if isinstance(payload.get(dialect), list):
                 return dialect
-    raise ValueError("missing or invalid 'registers' list in payload")
+    raise ValueError("missing or invalid 'registers' or 'params' list in payload")
 
 
 def parse_registers(payload: object, field: str = "registers") -> dict[int, int]:

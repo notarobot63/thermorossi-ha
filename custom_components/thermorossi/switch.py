@@ -53,24 +53,33 @@ class ThermorossiSwitch(ThermorossiEntity, SwitchEntity):
 
     async def _params_toggle(self, turn_on: bool) -> None:
         """Send the on/off toggle only when it moves the stove the requested way."""
-        status = self.coordinator.status_code
-        if status is None:
-            raise HomeAssistantError("The stove state is unknown")
-        if turn_on and status == PARAMS_FINAL_CLEANING_STATE:
-            raise HomeAssistantError(
-                "The stove is finishing its final cleaning: wait until it is off"
+        async with self.coordinator.toggle_lock:
+            # A toggle sent a moment ago may not show in the state yet: sending
+            # another one would undo it.
+            pending = self.coordinator.toggle_pending_turn_on
+            if pending is not None:
+                if pending == turn_on:
+                    return
+                raise HomeAssistantError(
+                    f"The stove is still processing the previous "
+                    f"{'on' if pending else 'off'} command: try again in a few seconds"
+                )
+            status = self.coordinator.status_code
+            if status is None:
+                raise HomeAssistantError("The stove state is unknown")
+            if turn_on and status == PARAMS_FINAL_CLEANING_STATE:
+                raise HomeAssistantError(
+                    "The stove is finishing its final cleaning: wait until it is off"
+                )
+            # Off is reached through the final cleaning: already on the way there.
+            already_there = (
+                status != PARAMS_OFF_STATE
+                if turn_on
+                else status in (PARAMS_OFF_STATE, PARAMS_FINAL_CLEANING_STATE)
             )
-        # Off is reached through the final cleaning: already on the way there.
-        already_there = (
-            status != PARAMS_OFF_STATE
-            if turn_on
-            else status in (PARAMS_OFF_STATE, PARAMS_FINAL_CLEANING_STATE)
-        )
-        # A toggle sent a moment ago may not show in the state yet: a second
-        # one would undo it.
-        if already_there or self.coordinator.toggle_pending:
-            return
-        if not await self.coordinator.async_toggle_power():
-            raise HomeAssistantError(
-                f"Failed to turn {'on' if turn_on else 'off'} the stove"
-            )
+            if already_there:
+                return
+            if not await self.coordinator.async_toggle_power(turn_on):
+                raise HomeAssistantError(
+                    f"Failed to turn {'on' if turn_on else 'off'} the stove"
+                )

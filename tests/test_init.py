@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import asyncio
+
 import pytest
 from homeassistant.components.diagnostics import REDACTED
 from homeassistant.config_entries import ConfigEntryState
@@ -341,6 +343,7 @@ class ParamsStove:
         data = str(data)
         if data == "key=022":
             self.toggles += 1
+            await asyncio.sleep(0.01)  # let a concurrent call reach its state check
             return AiohttpClientMockResponse(method, url, json={"result": True})
         if "category=1" in data:
             # Some modules answer category 1 with an empty list
@@ -444,6 +447,8 @@ async def test_params_half_degree_setpoint(
     setpoint = hass.states.get("number.thermorossi_temperature_setpoint")
     assert setpoint.state == "21.5"
     assert setpoint.attributes["step"] == 0.5
+    # The official page's bounds are in °C, whatever the step
+    assert (setpoint.attributes["min"], setpoint.attributes["max"]) == (5, 40)
     await hass.services.async_call(
         "number", "set_value",
         {"entity_id": "number.thermorossi_temperature_setpoint", "value": 19.5},
@@ -472,7 +477,10 @@ async def test_params_toggle_only_when_needed(
     assert stove.toggles == 1
     # Not reflected in the state yet: a second toggle would undo the first
     await _switch(hass, "turn_on")
-    await _switch(hass, "turn_off")
+    assert stove.toggles == 1
+    # The opposite request is refused loudly rather than silently dropped
+    with pytest.raises(HomeAssistantError, match="previous on command"):
+        await _switch(hass, "turn_off")
     assert stove.toggles == 1
 
     stove.set(p2=1)  # waiting for flame
@@ -562,3 +570,95 @@ async def test_firmware_update_switches_dialect(
     assert config_entry.runtime_data.dialect == "params"
     assert hass.states.get("sensor.thermorossi_state").state == "work"
     assert hass.states.get("number.thermorossi_fan_speed").state == STATE_UNAVAILABLE
+
+
+async def test_firmware_downgrade_switches_dialect(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """A "params" module that starts answering "registers" gets its entities rebuilt."""
+    await _setup_params(hass, aioclient_mock, config_entry)
+    assert hass.states.get("number.thermorossi_fan_speed") is None
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.post(GET_URL, json=make_registers())
+    await config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert config_entry.state is ConfigEntryState.LOADED
+    assert config_entry.runtime_data.dialect == "registers"
+    assert hass.states.get("number.thermorossi_fan_speed").state == "2.0"
+
+
+async def test_params_toggle_guard_expires(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """A toggle the stove ignored must not lock the switch for good."""
+    stove = await _setup_params(hass, aioclient_mock, config_entry)
+    coordinator = config_entry.runtime_data
+    await _switch(hass, "turn_on")
+    assert stove.toggles == 1
+    coordinator._toggle_sent_at -= 14
+    await _switch(hass, "turn_on")
+    assert stove.toggles == 1
+    coordinator._toggle_sent_at -= 2  # 16 s later, state still off: the toggle was lost
+    await _switch(hass, "turn_on")
+    assert stove.toggles == 2
+
+
+async def test_params_simultaneous_turn_on_sends_one_toggle(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    stove = await _setup_params(hass, aioclient_mock, config_entry)
+    await asyncio.gather(_switch(hass, "turn_on"), _switch(hass, "turn_on"))
+    assert stove.toggles == 1
+
+
+async def test_params_rejected_toggle(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """A refused toggle raises and does not arm the guard."""
+    stove = ParamsStove()
+    calls = {"toggle": 0}
+
+    async def side_effect(method, url, data):
+        if str(data) == "key=022":
+            calls["toggle"] += 1
+            return AiohttpClientMockResponse(method, url, json={"result": False})
+        return await stove.side_effect(method, url, data)
+
+    aioclient_mock.post(GET_URL, side_effect=side_effect)
+    await _setup(hass, config_entry)
+
+    for _ in range(2):
+        with pytest.raises(HomeAssistantError):
+            await _switch(hass, "turn_on")
+    assert calls["toggle"] == 2
+
+
+async def test_params_num_power_from_reply(
+    hass: HomeAssistant, aioclient_mock, config_entry, caplog
+) -> None:
+    stove = ParamsStove()
+    stove.reply["numPower"] = 3
+    stove.reply["custom"] = 5619
+    aioclient_mock.post(GET_URL, side_effect=stove.side_effect)
+    await _setup(hass, config_entry)
+
+    assert hass.states.get("number.thermorossi_power_level").attributes["max"] == 3
+    # Another model variant: decoded with the default tables, but flagged
+    assert "customization code 5619" in caplog.text
+
+
+@pytest.mark.parametrize(("state", "key"), [(8, "alarm"), (9, "alarm_memory")])
+async def test_params_alarm_states(
+    hass: HomeAssistant, aioclient_mock, config_entry, state, key
+) -> None:
+    stove = await _setup_params(
+        hass, aioclient_mock, config_entry, p2=state, p3=0b1000
+    )
+    assert hass.states.get("sensor.thermorossi_state").state == key
+    assert hass.states.get("binary_sensor.thermorossi_error_stop").state == STATE_ON
+    assert hass.states.get("sensor.thermorossi_alarm_message").state == "start_failed"
+    with pytest.raises(HomeAssistantError):
+        await _switch(hass, "turn_on")
+    assert stove.toggles == 0

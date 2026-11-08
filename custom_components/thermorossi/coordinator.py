@@ -46,6 +46,7 @@ from .const import (
     DIALECT_REGISTERS,
     PARAMS_ALARM_CODES,
     PARAMS_ALARM_OPTIONS,
+    PARAMS_DEFAULT_CUSTOM,
     PARAMS_DEFAULT_NUM_POWER,
     PARAMS_ERROR_STATES,
     PARAMS_GET_PAYLOAD,
@@ -91,6 +92,11 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self.num_power: int = PARAMS_DEFAULT_NUM_POWER
         self._toggle_sent_at: float | None = None
         self._toggle_status: int | None = None
+        self._toggle_turn_on: bool | None = None
+        # Held from the state check to the end of the toggle, so two
+        # simultaneous calls cannot both decide to send it.
+        self.toggle_lock = asyncio.Lock()
+        self._warned_custom = False
         # Raw get-registers replies, by request payload, for diagnostics
         self.last_payloads: dict[str, Any] = {}
         # The WiNET module is a tiny single-threaded HTTP server: serialize
@@ -274,7 +280,18 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         params = await self._parse(body, DIALECT_PARAMS, PARAMS_REQUIRED)
         self.temp_div = positive_number(body, "tempDiv", 1)
         self.set_temp_div = positive_number(body, "setTempDiv", 1)
-        self.num_power = int(positive_number(body, "numPower", PARAMS_DEFAULT_NUM_POWER))
+        self.num_power = max(
+            1, int(positive_number(body, "numPower", PARAMS_DEFAULT_NUM_POWER))
+        )
+        custom = body.get("custom")
+        if custom not in (None, PARAMS_DEFAULT_CUSTOM) and not self._warned_custom:
+            self._warned_custom = True
+            _LOGGER.warning(
+                "Stove (%s) reports WiNET customization code %s: only the default "
+                "code %s has been decoded, states and alarms may be named wrongly. "
+                "Please open an issue with a recording of the module's web page",
+                self.host, custom, PARAMS_DEFAULT_CUSTOM,
+            )
         return params
 
     def _dialect_changed(self) -> NoReturn:
@@ -327,11 +344,16 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
             and self.status_code == self._toggle_status
         )
 
-    async def async_toggle_power(self) -> bool:
+    @property
+    def toggle_pending_turn_on(self) -> bool | None:
+        """Return the direction of the pending toggle (True = on), or None."""
+        return self._toggle_turn_on if self.toggle_pending else None
+
+    async def async_toggle_power(self, turn_on: bool) -> bool:
         """Send the "params" dialect on/off TOGGLE.
 
-        The caller must have checked the current state: the same command turns
-        a stopped stove on and a running stove off.
+        The caller must hold toggle_lock and have checked the current state:
+        the same command turns a stopped stove on and a running stove off.
         """
         try:
             result = await self._post(API_GET_REGISTERS, PARAMS_TOGGLE_PAYLOAD)
@@ -343,6 +365,7 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
             return False
         self._toggle_sent_at = time.monotonic()
         self._toggle_status = self.status_code
+        self._toggle_turn_on = turn_on
         self._schedule_fast_poll()
         return True
 
