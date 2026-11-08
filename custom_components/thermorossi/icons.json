@@ -9,7 +9,12 @@
           "wait_on": "mdi:fire",
           "temp_ok": "mdi:fire",
           "no_prog": "mdi:fire",
-          "stop": "mdi:fire-alert"
+          "stop": "mdi:fire-alert",
+          "wait_flame": "mdi:fire",
+          "brazier_cleaning": "mdi:fire",
+          "final_cleaning": "mdi:fire",
+          "alarm": "mdi:fire-alert",
+          "alarm_memory": "mdi:fire-alert"
         }
       },
       "fire_level": {

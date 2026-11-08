@@ -104,3 +104,66 @@ ALARM_CODES = {
 
 # State keys exposed by the alarm message sensor (ENUM options)
 ALARM_OPTIONS = ["ok", *ALARM_CODES.values(), "unknown"]
+
+# ---------------------------------------------------------------------------
+# "params" dialect (WiNET firmware 0.79 and others)
+#
+# get-registers answers a short "params" list of [id, value] pairs instead of
+# the "registers" map, with other ids, scale factors given in the reply and a
+# toggle command for on/off. Decoding taken from the module's management.js;
+# see WINET_API.md.
+# ---------------------------------------------------------------------------
+DIALECT_REGISTERS = "registers"
+DIALECT_PARAMS = "params"
+
+# Payload read by the official page (category 4, the clock tab, returns the same set)
+PARAMS_GET_PAYLOAD = "key=020&category=2"
+# On/off is a TOGGLE: never send it without knowing the stove state
+PARAMS_TOGGLE_PAYLOAD = "key=022"
+
+PARAM_AIR_TEMP = 0     # Ambient temperature: value * tempDiv °C
+PARAM_STATUS = 2       # Stove state (PARAMS_STATUS_CODES)
+PARAM_ALARM = 3        # Alarm bit field (PARAMS_ALARM_CODES), meaningful in alarm states
+PARAM_SET_TEMP = 50    # Setpoint: value * setTempDiv °C, written with memory=1
+PARAM_POWER = 51       # Power level 1..numPower, written with memory=1
+PARAM_RTC_DAY = 59     # Stove clock: weekday 1-7 (1 = Monday)
+PARAM_RTC_HOUR = 60    # Stove clock: hour, BCD
+PARAM_RTC_MINUTE = 61  # Stove clock: minute, BCD
+PARAMS_REQUIRED = (PARAM_STATUS, PARAM_SET_TEMP, PARAM_POWER)
+
+# Setpoint raw range of the official page (scaled by setTempDiv)
+PARAMS_SET_TEMP_RAW_MIN = 5
+PARAMS_SET_TEMP_RAW_MAX = 40
+PARAMS_DEFAULT_NUM_POWER = 5
+
+PARAMS_STATUS_CODES = {
+    0: "off",
+    1: "wait_flame",
+    2: "wait_flame",
+    3: "start",
+    4: "work",
+    5: "brazier_cleaning",
+    6: "final_cleaning",
+    7: "standby",
+    8: "alarm",
+    9: "alarm_memory",
+}
+PARAMS_STATUS_OPTIONS = [*dict.fromkeys(PARAMS_STATUS_CODES.values()), "unknown"]
+PARAMS_OFF_STATE = 0
+PARAMS_FINAL_CLEANING_STATE = 6
+PARAMS_ERROR_STATES = {8, 9}
+# A toggle sent less than this long ago (s) may not be reflected in the state yet
+PARAMS_TOGGLE_GUARD = 15
+
+# Alarm bit -> translation key (from the module's management.js)
+PARAMS_ALARM_CODES = {
+    0: "flue_probe_disconnected",
+    1: "flue_overtemp",
+    2: "exhaust_fan_fault",
+    3: "start_failed",
+    4: "no_pellets",
+    5: "low_pressure",
+    6: "thermal_safety",
+    7: "pellet_door_open",
+}
+PARAMS_ALARM_OPTIONS = ["ok", *PARAMS_ALARM_CODES.values(), "unknown"]

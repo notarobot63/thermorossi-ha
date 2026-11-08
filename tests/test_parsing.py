@@ -137,5 +137,31 @@ class DecodeTests(unittest.TestCase):
         self.assertIsNone(parsing.decode_chrono(regs, 24, 7, 3))
 
 
+class ParamsDialectTests(unittest.TestCase):
+    def test_detect_dialect(self) -> None:
+        self.assertEqual(parsing.detect_dialect({"registers": []}), "registers")
+        self.assertEqual(parsing.detect_dialect({"params": [[2, 0]]}), "params")
+        for payload in ({"other": 1}, {"params": "x"}, [1]):
+            with self.assertRaises(ValueError):
+                parsing.detect_dialect(payload)
+
+    def test_parse_params(self) -> None:
+        payload = {"params": [[0, 46], [50, 23]]}
+        self.assertEqual(parsing.parse_registers(payload, "params"), {0: 46, 50: 23})
+        with self.assertRaises(ValueError):
+            parsing.parse_registers(payload)  # no "registers" list
+
+    def test_decode_bcd(self) -> None:
+        self.assertEqual(parsing.decode_bcd(0x16), 16)
+        self.assertEqual(parsing.decode_bcd(0x02), 2)
+        self.assertEqual(parsing.decode_bcd(0x59), 59)
+
+    def test_positive_number(self) -> None:
+        self.assertEqual(parsing.positive_number({"d": 0.5}, "d", 1), 0.5)
+        for bad in (0, -1, "0.5", True, None):
+            self.assertEqual(parsing.positive_number({"d": bad}, "d", 1), 1)
+        self.assertEqual(parsing.positive_number({}, "d", 5), 5)
+
+
 if __name__ == "__main__":
     unittest.main()

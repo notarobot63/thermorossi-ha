@@ -47,6 +47,12 @@
           "wait_time": "Scheduled standby",
           "stop": "Error stop",
           "sunout": "Summer shutdown",
+          "wait_flame": "Waiting for flame",
+          "brazier_cleaning": "Brazier cleaning",
+          "final_cleaning": "Final cleaning",
+          "standby": "Standby",
+          "alarm": "Alarm",
+          "alarm_memory": "Alarm memory",
           "unknown": "Unknown"
         }
       },
@@ -94,6 +100,10 @@
           "ash_drawer_missing": "Ash drawer missing",
           "lcd_timeout": "LCD timeout",
           "probe_stg_disconnected": "STG probe disconnected",
+          "flue_overtemp": "Flue gas overtemperature",
+          "low_pressure": "Lack of pressure",
+          "thermal_safety": "Thermal safety",
+          "pellet_door_open": "Pellet compartment open",
           "unknown": "Unknown alarm"
         }
       },

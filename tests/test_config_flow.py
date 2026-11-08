@@ -7,10 +7,11 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
 
 from custom_components.thermorossi.const import DOMAIN
 
-from .conftest import GET_URL, HOST, STATUS_URL, make_registers
+from .conftest import GET_URL, HOST, STATUS_URL, make_params, make_registers
 
 
 async def _start(hass: HomeAssistant, host: str) -> dict:
@@ -65,6 +66,19 @@ async def test_user_flow_unknown_firmware_is_logged(
     assert result["errors"] == {"base": "unexpected_payload"}
     assert "WiNET firmware 0.79" in caplog.text
     assert '"numPower":5' in caplog.text
+
+
+async def test_user_flow_params_firmware(hass: HomeAssistant, aioclient_mock) -> None:
+    """Firmware 0.79 ("params" dialect) is accepted once category 2 holds the values."""
+
+    async def side_effect(method, url, data):
+        if "category=1" in str(data):
+            return AiohttpClientMockResponse(method, url, json={"params": [], "cat": 1})
+        return AiohttpClientMockResponse(method, url, json=make_params())
+
+    aioclient_mock.post(GET_URL, side_effect=side_effect)
+    result = await _start(hass, HOST)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
 
 
 async def test_user_flow_invalid_host(hass: HomeAssistant) -> None:

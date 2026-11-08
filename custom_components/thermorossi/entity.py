@@ -4,7 +4,7 @@ from __future__ import annotations
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, ERROR_STATE
+from .const import DOMAIN
 from .coordinator import ThermorossiConfigEntry, ThermorossiCoordinator
 
 
@@ -28,5 +28,5 @@ class ThermorossiEntity(CoordinatorEntity[ThermorossiCoordinator]):
 
     @property
     def in_error(self) -> bool:
-        """Return True when the stove is in the STOP error state."""
-        return self.coordinator.status_code == ERROR_STATE
+        """Return True when the stove is stopped on an alarm."""
+        return self.coordinator.in_error

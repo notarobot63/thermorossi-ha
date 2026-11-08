@@ -18,7 +18,7 @@ from custom_components.thermorossi import _get_entry_device
 from custom_components.thermorossi.const import CMD_OFF, DOMAIN
 from custom_components.thermorossi.diagnostics import async_get_config_entry_diagnostics
 
-from .conftest import GET_URL, HOST, SET_URL, STATUS_URL, make_registers
+from .conftest import GET_URL, HOST, SET_URL, STATUS_URL, make_params, make_registers
 
 
 async def _setup(hass: HomeAssistant, entry) -> None:
@@ -325,3 +325,240 @@ async def test_diagnostics_when_setup_failed(
     assert diag["module_status"]["fwVer"] == "0.79"
     assert diag["raw_replies"]["key=020&category=1"] == body
     assert diag["registers"] is None
+
+
+# --- "params" dialect (WiNET firmware 0.79) ---------------------------------
+
+
+class ParamsStove:
+    """Mock of a "params" dialect module: answers reads, counts toggles."""
+
+    def __init__(self, **overrides) -> None:
+        self.reply = make_params(**overrides)
+        self.toggles = 0
+
+    async def side_effect(self, method, url, data):
+        data = str(data)
+        if data == "key=022":
+            self.toggles += 1
+            return AiohttpClientMockResponse(method, url, json={"result": True})
+        if "category=1" in data:
+            # Some modules answer category 1 with an empty list
+            return AiohttpClientMockResponse(
+                method, url, json={"params": [], "cat": 1, "signal": 2}
+            )
+        return AiohttpClientMockResponse(method, url, json=self.reply)
+
+    def set(self, **overrides) -> None:
+        self.reply = make_params(**overrides)
+
+
+async def _setup_params(hass, aioclient_mock, config_entry, **overrides) -> ParamsStove:
+    stove = ParamsStove(**overrides)
+    aioclient_mock.post(GET_URL, side_effect=stove.side_effect)
+    aioclient_mock.post(SET_URL, json={"result": True})
+    await _setup(hass, config_entry)
+    return stove
+
+
+async def _refresh(hass: HomeAssistant, config_entry) -> None:
+    await config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+
+async def test_params_entities(hass: HomeAssistant, aioclient_mock, config_entry) -> None:
+    await _setup_params(hass, aioclient_mock, config_entry)
+    assert config_entry.runtime_data.dialect == "params"
+
+    assert hass.states.get("switch.thermorossi_stove").state == STATE_OFF
+    status = hass.states.get("sensor.thermorossi_state")
+    assert status.state == "off"
+    assert "final_cleaning" in status.attributes["options"]
+    assert "sunout" not in status.attributes["options"]
+    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "23.0"
+    assert hass.states.get("sensor.thermorossi_alarm_message").state == "ok"
+    assert hass.states.get("binary_sensor.thermorossi_alarm").state == STATE_OFF
+    assert hass.states.get("binary_sensor.thermorossi_error_stop").state == STATE_OFF
+
+    setpoint = hass.states.get("number.thermorossi_temperature_setpoint")
+    assert setpoint.state == "23.0"
+    assert (setpoint.attributes["min"], setpoint.attributes["max"]) == (5, 40)
+    power = hass.states.get("number.thermorossi_power_level")
+    assert power.state == "3.0"
+    assert (power.attributes["min"], power.attributes["max"]) == (1, 5)
+
+    rtc = hass.states.get("sensor.thermorossi_internal_clock")
+    assert rtc.state == "16:02"
+    assert rtc.attributes["weekday"] == 7
+
+    # Nothing decoded for these on this firmware: not created
+    assert hass.states.get("number.thermorossi_fan_speed") is None
+    assert hass.states.get("binary_sensor.thermorossi_pellets_low") is None
+    assert hass.states.get("sensor.thermorossi_weekly_schedule") is None
+    assert hass.states.get("sensor.thermorossi_flue_temperature") is None
+
+
+async def test_params_reads_category_2(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    await _setup_params(hass, aioclient_mock, config_entry)
+    reads = [str(c[2]) for c in aioclient_mock.mock_calls if str(c[1]) == GET_URL]
+    assert reads == ["key=020&category=1", "key=020&category=2"]
+
+    aioclient_mock.mock_calls.clear()
+    await _refresh(hass, config_entry)
+    reads = [str(c[2]) for c in aioclient_mock.mock_calls if str(c[1]) == GET_URL]
+    assert reads == ["key=020&category=2"]
+
+
+async def test_params_writes(hass: HomeAssistant, aioclient_mock, config_entry) -> None:
+    await _setup_params(hass, aioclient_mock, config_entry)
+
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.thermorossi_temperature_setpoint", "value": 24},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.thermorossi_power_level", "value": 2},
+        blocking=True,
+    )
+    writes = [str(c[2]) for c in aioclient_mock.mock_calls if str(c[1]) == SET_URL]
+    assert writes == [
+        "key=002&memory=1&regId=50&value=24",
+        "key=002&memory=1&regId=51&value=2",
+    ]
+
+
+async def test_params_half_degree_setpoint(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """With setTempDiv 0.5 the raw setpoint is in half degrees."""
+    stove = ParamsStove(p50=43)
+    stove.reply["setTempDiv"] = 0.5
+    aioclient_mock.post(GET_URL, side_effect=stove.side_effect)
+    aioclient_mock.post(SET_URL, json={"result": True})
+    await _setup(hass, config_entry)
+
+    setpoint = hass.states.get("number.thermorossi_temperature_setpoint")
+    assert setpoint.state == "21.5"
+    assert setpoint.attributes["step"] == 0.5
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.thermorossi_temperature_setpoint", "value": 19.5},
+        blocking=True,
+    )
+    set_call = next(c for c in aioclient_mock.mock_calls if str(c[1]) == SET_URL)
+    assert set_call[2] == "key=002&memory=1&regId=50&value=39"
+
+
+async def _switch(hass: HomeAssistant, service: str) -> None:
+    await hass.services.async_call(
+        "switch", service, {"entity_id": "switch.thermorossi_stove"}, blocking=True
+    )
+
+
+async def test_params_toggle_only_when_needed(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """On/off is a toggle: it must never be sent when it would do the opposite."""
+    stove = await _setup_params(hass, aioclient_mock, config_entry)
+
+    await _switch(hass, "turn_off")  # already off
+    assert stove.toggles == 0
+
+    await _switch(hass, "turn_on")
+    assert stove.toggles == 1
+    # Not reflected in the state yet: a second toggle would undo the first
+    await _switch(hass, "turn_on")
+    await _switch(hass, "turn_off")
+    assert stove.toggles == 1
+
+    stove.set(p2=1)  # waiting for flame
+    await _refresh(hass, config_entry)
+    assert hass.states.get("switch.thermorossi_stove").state == STATE_ON
+    await _switch(hass, "turn_on")  # already on
+    assert stove.toggles == 1
+    await _switch(hass, "turn_off")
+    assert stove.toggles == 2
+
+
+async def test_params_final_cleaning(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    stove = await _setup_params(hass, aioclient_mock, config_entry, p2=6)
+    assert hass.states.get("sensor.thermorossi_state").state == "final_cleaning"
+    assert hass.states.get("switch.thermorossi_stove").state == STATE_ON
+
+    await _switch(hass, "turn_off")  # already stopping
+    with pytest.raises(HomeAssistantError):
+        await _switch(hass, "turn_on")
+    assert stove.toggles == 0
+
+
+async def test_params_alarm(hass: HomeAssistant, aioclient_mock, config_entry) -> None:
+    # Bit 2 flickers during ignition: not an alarm while the stove runs
+    stove = await _setup_params(hass, aioclient_mock, config_entry, p2=1, p3=0b100)
+    assert hass.states.get("binary_sensor.thermorossi_alarm").state == STATE_OFF
+    assert hass.states.get("sensor.thermorossi_alarm_message").state == "ok"
+
+    stove.set(p2=8, p3=0b10000)
+    await _refresh(hass, config_entry)
+    assert hass.states.get("sensor.thermorossi_state").state == "alarm"
+    assert hass.states.get("sensor.thermorossi_alarm_message").state == "no_pellets"
+    alarm = hass.states.get("binary_sensor.thermorossi_alarm")
+    assert alarm.state == STATE_ON
+    assert alarm.attributes["active_alarms"] == ["no_pellets"]
+    assert hass.states.get("binary_sensor.thermorossi_error_stop").state == STATE_ON
+    assert hass.states.get("number.thermorossi_power_level").state == STATE_UNAVAILABLE
+
+    with pytest.raises(HomeAssistantError):
+        await _switch(hass, "turn_on")
+    assert stove.toggles == 0
+    await _switch(hass, "turn_off")  # acknowledges the alarm
+    assert stove.toggles == 1
+
+
+async def test_params_missing_values_names_firmware(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    aioclient_mock.post(GET_URL, json={"params": [[0, 39]], "cat": 2})
+    aioclient_mock.post(STATUS_URL, json={"fwVer": "0.43"})
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert "WiNET firmware 0.43" in config_entry.reason
+    assert "[2, 50, 51]" in config_entry.reason
+
+
+async def test_params_diagnostics_redact_ssid(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    await _setup_params(hass, aioclient_mock, config_entry)
+    aioclient_mock.post(STATUS_URL, json={"fwVer": "0.79"})
+    diag = await async_get_config_entry_diagnostics(hass, config_entry)
+    assert diag["dialect"] == "params"
+    assert diag["raw_replies"]["key=020&category=2"]["ssid"] == REDACTED
+    assert diag["registers"][50] == 23
+
+
+async def test_firmware_update_switches_dialect(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """A module updated to 0.79 while running gets its entities rebuilt."""
+    aioclient_mock.post(GET_URL, json=make_registers())
+    await _setup(hass, config_entry)
+    assert hass.states.get("number.thermorossi_fan_speed") is not None
+
+    aioclient_mock.clear_requests()
+    stove = ParamsStove(p2=4)
+    aioclient_mock.post(GET_URL, side_effect=stove.side_effect)
+    aioclient_mock.post(SET_URL, json={"result": True})
+    await config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert config_entry.state is ConfigEntryState.LOADED
+    assert config_entry.runtime_data.dialect == "params"
+    assert hass.states.get("sensor.thermorossi_state").state == "work"
+    assert hass.states.get("number.thermorossi_fan_speed").state == STATE_UNAVAILABLE

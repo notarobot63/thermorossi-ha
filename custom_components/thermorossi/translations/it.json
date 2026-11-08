@@ -47,6 +47,12 @@
           "wait_time": "Attesa programmata",
           "stop": "Arresto (errore)",
           "sunout": "Arresto estivo",
+          "wait_flame": "Attesa fiamma",
+          "brazier_cleaning": "Pulizia braciere",
+          "final_cleaning": "Pulizia finale",
+          "standby": "Stand-by",
+          "alarm": "Allarme",
+          "alarm_memory": "Memoria allarme",
           "unknown": "Sconosciuto"
         }
       },
@@ -94,6 +100,10 @@
           "ash_drawer_missing": "Cassetto cenere assente",
           "lcd_timeout": "Timeout LCD",
           "probe_stg_disconnected": "Sonda STG scollegata",
+          "flue_overtemp": "Sovratemperatura fumi",
+          "low_pressure": "Mancanza pressione",
+          "thermal_safety": "Sicurezza termica",
+          "pellet_door_open": "Vano pellet aperto",
           "unknown": "Allarme sconosciuto"
         }
       },

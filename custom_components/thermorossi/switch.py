@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ACTIVE_STATES
+from .const import ACTIVE_STATES, PARAMS_FINAL_CLEANING_STATE, PARAMS_OFF_STATE
 from .coordinator import ThermorossiConfigEntry
 from .entity import ThermorossiEntity
 
@@ -29,6 +29,10 @@ class ThermorossiSwitch(ThermorossiEntity, SwitchEntity):
         # The STOP error state is reported as "on": the stove has not been
         # acknowledged yet, and switching off (the same as pressing the power
         # button on Micronova boards) is what clears it.
+        if self.coordinator.is_params:
+            # As on the official page: anything but OFF can be switched off
+            # (alarm states included, that is how they are acknowledged).
+            return self.coordinator.status_code != PARAMS_OFF_STATE
         return self.coordinator.status_code in ACTIVE_STATES or self.in_error
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -36,9 +40,37 @@ class ThermorossiSwitch(ThermorossiEntity, SwitchEntity):
             raise HomeAssistantError(
                 "The stove is in error stop: turn it off to acknowledge the alarm first"
             )
-        if not await self.coordinator.async_turn_on():
+        if self.coordinator.is_params:
+            await self._params_toggle(turn_on=True)
+        elif not await self.coordinator.async_turn_on():
             raise HomeAssistantError("Failed to turn on the stove")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        if not await self.coordinator.async_turn_off():
+        if self.coordinator.is_params:
+            await self._params_toggle(turn_on=False)
+        elif not await self.coordinator.async_turn_off():
             raise HomeAssistantError("Failed to turn off the stove")
+
+    async def _params_toggle(self, turn_on: bool) -> None:
+        """Send the on/off toggle only when it moves the stove the requested way."""
+        status = self.coordinator.status_code
+        if status is None:
+            raise HomeAssistantError("The stove state is unknown")
+        if turn_on and status == PARAMS_FINAL_CLEANING_STATE:
+            raise HomeAssistantError(
+                "The stove is finishing its final cleaning: wait until it is off"
+            )
+        # Off is reached through the final cleaning: already on the way there.
+        already_there = (
+            status != PARAMS_OFF_STATE
+            if turn_on
+            else status in (PARAMS_OFF_STATE, PARAMS_FINAL_CLEANING_STATE)
+        )
+        # A toggle sent a moment ago may not show in the state yet: a second
+        # one would undo it.
+        if already_there or self.coordinator.toggle_pending:
+            return
+        if not await self.coordinator.async_toggle_power():
+            raise HomeAssistantError(
+                f"Failed to turn {'on' if turn_on else 'off'} the stove"
+            )

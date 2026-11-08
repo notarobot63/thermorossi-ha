@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.0]
+
+### Ajouts
+- **Prise en charge du format `params`** (firmware WiNET 0.79, issues #2 et #4). Le module y parle un autre dialecte de l'API, détecté automatiquement à la première lecture. Le même format est signalé sur les firmwares 0.17 et 0.43 : ils devraient fonctionner aussi, sans confirmation à ce jour. Entités disponibles : poêle (marche/arrêt), état, température ambiante, message d'alarme, alarme, arrêt sur erreur, horloge interne, consigne et puissance réglables. Le décodage vient du script de la page officielle du module (`management.js`), recoupé avec l'enregistrement d'un utilisateur.
+  - La marche/arrêt de ce firmware est une bascule : l'intégration ne l'envoie que si elle va dans le sens demandé, et jamais deux fois de suite avant que l'état du poêle ait changé.
+  - Si le firmware du module change pendant que Home Assistant tourne, l'intégration se recharge pour recréer les bonnes entités.
+
+### Corrections
+- Diagnostics : le nom du réseau WiFi renvoyé par le firmware 0.79 (`ssid`) est maintenant masqué.
+
 ## [1.4.2]
 
 ### Documentation

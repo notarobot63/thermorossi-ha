@@ -47,6 +47,12 @@
           "wait_time": "Attente horaire",
           "stop": "Arrêt (erreur)",
           "sunout": "Arrêt estival",
+          "wait_flame": "Attente flamme",
+          "brazier_cleaning": "Nettoyage brasier",
+          "final_cleaning": "Nettoyage final",
+          "standby": "Veille",
+          "alarm": "Alarme",
+          "alarm_memory": "Alarme mémorisée",
           "unknown": "Inconnu"
         }
       },
@@ -94,6 +100,10 @@
           "ash_drawer_missing": "Tiroir absent",
           "lcd_timeout": "Timeout LCD",
           "probe_stg_disconnected": "Sonde STG déconnectée",
+          "flue_overtemp": "Surchauffe des fumées",
+          "low_pressure": "Manque de pression",
+          "thermal_safety": "Sécurité thermique",
+          "pellet_door_open": "Trappe à pellets ouverte",
           "unknown": "Alarme inconnue"
         }
       },

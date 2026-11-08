@@ -29,7 +29,7 @@ l'interface, sans avoir été exécutées : c'est indiqué à chaque fois.
 - **Interface web** : `http://<ip>/management.html`
 - **Adresse par défaut** : DHCP (IP fixe recommandée sur le routeur)
 - **Firmware testé** : 0.73. Le firmware 0.79 parle un autre dialecte de l'API, voir
-  [Firmware 0.79](#firmware-079-format-params)
+  [Firmware 0.79](#firmware-079-format-params) (pris en charge, non testé par nous)
 
 Le module est un **proxy mince** : il lit les registres Modbus du board principal et les expose
 via HTTP. Il ne stocke pas lui-même les valeurs - elles viennent du poêle.
@@ -419,18 +419,18 @@ chrono_on  = bool(regs.get(7, 0) & 0x1)
 
 ## Firmware 0.79 (format `params`)
 
-Non pris en charge par l'intégration à ce jour. Cette section rassemble ce qu'on sait,
-à partir de deux sources :
+Pris en charge par l'intégration. Sources :
 
-- une capture du trafic de l'interface officielle (`management.html`) fournie par un
-  utilisateur dont le module est en 0.79 ;
+- deux enregistrements (HAR) de l'interface officielle (`management.html`) fournis par
+  des utilisateurs dont le module est en 0.79. Le second contient les scripts de la page
+  (`management.js`), d'où vient la table de décodage ci-dessous, ainsi qu'un allumage,
+  des changements de consigne et de puissance, puis un arrêt ;
 - deux projets publics qui pilotent des modules renvoyant le même format :
   [jeffreybrits/Winet_Pellet_Stove](https://github.com/jeffreybrits/Winet_Pellet_Stove)
   et [DarkSario/invicta-lodi8-ha-integration](https://github.com/DarkSario/invicta-lodi8-ha-integration)
   (poêle Invicta).
 
-Rien de cette section n'a été vérifié sur un module 0.79 par nous-mêmes. La capture ne
-contient pas les scripts de la page, donc pas la table de décodage.
+Rien n'a été vérifié sur un module 0.79 par nous-mêmes.
 
 ### Lecture
 
@@ -439,25 +439,65 @@ POST /ajax/get-registers
 Body: key=020&category=2
 ```
 
-L'interface officielle interroge `category=2` (et `category=4` sur un autre onglet), mais
-les deux renvoient le même contenu. À la place de `registers`, la réponse porte une courte
-liste de paires `[id, valeur]` :
+L'interface officielle interroge `category=2` (et `category=4` sur l'onglet horloge, avec
+le même contenu). Sur certains modules, `category=1` renvoie une liste vide. À la place de
+`registers`, la réponse porte une courte liste de paires `[id, valeur]` :
 
 ```json
 {
   "key": "020",
-  "params": [[0,46],[2,4],[3,0],[4,63],[50,23],[51,2],[59,5],[60,32],[61,3],[62,35],
-             [63,16],[64,38],[300,0],[301,0],[302,31],[303,10]],
-  "cat": 2, "signal": 3, "logTemp": 230, "tempDiv": 0.5, "setTempDiv": 1,
-  "numPower": 5, "mode": 2, "modeThreeshold": 1, "tStart": 18, "tStop": 22,
-  "model": 0, "isOld": true, "custom": 65535, "name": "NO NAME",
+  "params": [[0,46],[2,0],[3,0],[4,4],[50,23],[51,3],[59,7],[60,22],[61,2],[62,8],
+             [63,17],[64,38],[300,1],[301,128],[302,0],[303,0]],
+  "cat": 2, "signal": 4, "logTemp": 230, "tempDiv": 0.5, "setTempDiv": 1,
+  "numPower": 5, "mode": 0, "modeThreeshold": 0, "tStart": 22, "tStop": 24,
+  "model": 0, "isOld": false, "custom": 65535, "name": "NO NAME",
   "tsense": {"show": 0, "list": []},
-  "inetTime": [2026, 10, 23, 20, 3, 0, 0, 5]
+  "inetTime": [2026, 11, 8, 15, 57, 0, 0, 7]
 }
 ```
 
 (la réponse réelle contient aussi `ssid`, retiré ici). Les numéros n'ont rien à voir avec
-la carte des registres du 0.73 : il n'y a ni 6 (état), ni 15 (consigne), ni 16 (ambiante).
+la carte des registres du 0.73.
+
+`custom` est le code de personnalisation du modèle : la page change d'affichage et de
+tables pour une centaine de codes. Tout ce qui suit vaut pour la branche par défaut
+(`65535`, celle des captures).
+
+### Table de décodage
+
+| id / champ | Sens | Décodage |
+|------------|------|----------|
+| `0` | Température ambiante | × `tempDiv` °C (46 × 0,5 = 23 °C) |
+| `2` | État du poêle | Table ci-dessous |
+| `3` | Alarmes | Champ de bits ci-dessous, affiché seulement dans les états 8 et 9 |
+| `50` | Consigne | × `setTempDiv` °C, bornes brutes 5 à 40 |
+| `51` | Puissance | 1 à `numPower` |
+| `59` | Horloge du poêle : jour de la semaine | 1 = lundi … 7 = dimanche |
+| `60`, `61` | Horloge du poêle : heure, minute | BCD (`0x16` = 16 h) |
+| `62`, `63`, `64` | Horloge du poêle : jour, mois, année | BCD, année + 2000 |
+| `inetTime` | Date et heure locales du réseau | `[année, mois, jour, h, min, s, ?, jour de la semaine]` |
+
+États (id `2`) :
+
+| Code | Page officielle | Clé dans l'intégration |
+|------|-----------------|------------------------|
+| 0 | OFF | `off` |
+| 1, 2 | ATTESA FIAMMA (attente flamme) | `wait_flame` |
+| 3 | ACCENSIONE (allumage) | `start` |
+| 4 | LAVORO (travail) | `work` |
+| 5 | PULIZIA BRACIERE (nettoyage brasier) | `brazier_cleaning` |
+| 6 | PULIZIA FINALE (nettoyage final) | `final_cleaning` |
+| 7 | STAND-BY | `standby` |
+| 8 | ALLARME | `alarm` |
+| 9 | MEMORIA ALLARME (alarme mémorisée) | `alarm_memory` |
+
+En état 4, si la température ambiante atteint la consigne, la page affiche « LAVORO
+(MODULA) » (code interne 200), sans valeur propre dans `params`.
+
+Alarmes (id `3`, premier bit actif affiché) : bit 0 sonde fumées, 1 surchauffe fumées,
+2 extracteur, 3 échec d'allumage, 4 pas de pellets, 5 manque de pression, 6 sécurité
+thermique, 7 trappe à pellets ouverte. La valeur passe brièvement à 4 au début d'un
+allumage sans que le poêle soit en alarme : la page ne l'affiche qu'en états 8 et 9.
 
 ### Écriture
 
@@ -469,16 +509,6 @@ Body: key=002&memory=1&regId=50&value=24
 Même endpoint qu'en 0.73, avec un paramètre `memory=1` en plus. Le module répond
 `{"result":true}` et la lecture suivante reflète la nouvelle valeur.
 
-### Ce qui est établi
-
-| id / champ | Sens | Source |
-|------------|------|--------|
-| `50` | Consigne de température, écrite par l'interface (23 → 24 → 23) | capture + les deux projets |
-| `51` | Niveau de puissance, de 1 à `numPower` (2 → 1 → 2) | capture + les deux projets |
-| `numPower` | Nombre de niveaux de puissance (5) | capture |
-| `setTempDiv` | Pas de la consigne. Vaut 1 sur la capture, où la valeur écrite est en °C ; le projet Invicta écrit la consigne ×2, ce qui suggère un pas de 0,5 sur son modèle | capture + Invicta |
-| `inetTime` | Date et heure locales `[année, mois, jour, h, min, s, ?, jour de la semaine]`, 5 = vendredi | capture (cohérent avec la date de capture) |
-
 ### Marche / arrêt
 
 ```
@@ -486,25 +516,23 @@ POST /ajax/get-registers
 Body: key=022
 ```
 
-Relevé dans les deux projets cités, absent de la capture. C'est une **bascule** : la
-commande allume un poêle éteint et éteint un poêle allumé. Elle ne doit donc jamais être
-envoyée sans connaître l'état réel du poêle.
+Réponse `{"result":true}`. C'est une **bascule** : la même commande allume un poêle éteint
+et éteint un poêle allumé. La page officielle propose « allumer » si l'état vaut 0 et
+« éteindre » sinon, et refuse d'allumer pendant le nettoyage final. Observé sur la
+capture : 0 → commande → 1 (2 s plus tard) → 2, puis commande → 6.
+
+L'intégration ne l'envoie que si elle va dans le sens demandé, et pas une seconde fois
+tant que l'état n'a pas changé depuis la précédente (15 s au plus).
 
 ### Non élucidé
 
-- **État du poêle** : le projet Invicta le lit dans l'id `2` (4 sur la capture), mais sa
-  table de correspondance est contradictoire (un même code y vaut à la fois « éteint » et
-  « attente flamme »). Inutilisable en l'état.
-- **Températures et alarmes** : aucune n'est identifiée. `logTemp` (230) ressemble à une
-  température ×10, sans confirmation. Les ids `61` (3 → 4) et `302` (31 → 30) ont changé
-  pendant la capture sans aucune écriture.
-- **Autres champs** : ids `0`, `3`, `4`, `59`-`64`, `300`-`303`, `mode`, `modeThreeshold`,
-  `tStart`/`tStop`, `isOld`, `model`, `custom`, `tsense`.
-
-La table de décodage se trouve probablement, comme en 0.73, dans `management.html` ou
-`management.js`. Une capture faite en rechargeant la page (cache désactivé), avec un
-allumage et un arrêt, devrait suffire à lever l'essentiel : la procédure est dans le
-README, section *Unsupported firmware*.
+- `4` : vaut 4 à 6 sur la capture, monte pendant le nettoyage final. La page l'appelle
+  « température des fumées » (+30 °C) pour d'autres codes de personnalisation, mais ne
+  l'affiche pas pour `65535`.
+- `302`, `303` : compte à rebours de la phase en cours (`303` décroît d'environ une unité
+  par seconde, repart à 180 en début de phase 2).
+- `300`, `301`, `logTemp`, `mode`, `modeThreeshold`, `tStart`/`tStop`, `isOld`, `model`,
+  `tsense` (sondes sans fil).
 
 ---
 

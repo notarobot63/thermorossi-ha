@@ -45,17 +45,29 @@ def build_base_url(host: str) -> str:
     return f"http://{host}"
 
 
-def parse_registers(payload: object) -> dict[int, int]:
-    """Parse the 'registers' list from a get-registers API payload.
+def detect_dialect(payload: object) -> str:
+    """Return which get-registers dialect a reply uses: "registers" or "params".
+
+    Raises ValueError if it is neither.
+    """
+    if isinstance(payload, dict):
+        for dialect in ("registers", "params"):
+            if isinstance(payload.get(dialect), list):
+                return dialect
+    raise ValueError("missing or invalid 'registers' list in payload")
+
+
+def parse_registers(payload: object, field: str = "registers") -> dict[int, int]:
+    """Parse the list of [id, value] pairs under field in a get-registers payload.
 
     Raises ValueError if the payload shape is unexpected.
     """
     if not isinstance(payload, dict):
         raise ValueError(f"expected a JSON object, got {type(payload).__name__}")
 
-    registers = payload.get("registers")
+    registers = payload.get(field)
     if not isinstance(registers, list):
-        raise ValueError("missing or invalid 'registers' list in payload")
+        raise ValueError(f"missing or invalid '{field}' list in payload")
 
     try:
         result = {entry[0]: entry[1] for entry in registers}
@@ -69,6 +81,19 @@ def parse_registers(payload: object) -> dict[int, int]:
             raise ValueError(f"non-numeric value for register {reg_id}: {value!r}")
 
     return result
+
+
+def positive_number(payload: Mapping[str, object], field: str, default: float) -> float:
+    """Return payload[field] if it is a positive number, else default."""
+    value = payload.get(field)
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+        return value
+    return default
+
+
+def decode_bcd(raw: int) -> int:
+    """Decode a two-digit BCD byte (0x23 -> 23)."""
+    return ((raw >> 4) & 0xF) * 10 + (raw & 0xF)
 
 
 def check_register_layout(registers: Mapping[int, int], required: tuple[int, ...]) -> None:

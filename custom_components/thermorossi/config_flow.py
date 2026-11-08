@@ -18,10 +18,14 @@ from .const import (
     API_HEADERS,
     GET_PAYLOAD,
     REQUIRED_REGISTERS,
+    DIALECT_PARAMS,
+    PARAMS_GET_PAYLOAD,
+    PARAMS_REQUIRED,
 )
 from .parsing import (
     build_base_url,
     check_register_layout,
+    detect_dialect,
     is_valid_host,
     normalize_host,
     parse_registers,
@@ -106,38 +110,20 @@ class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
         Every failure is logged with the details needed to diagnose it.
         """
         url = f"{build_base_url(host)}{API_GET_REGISTERS}"
-        try:
-            session = async_get_clientsession(self.hass)
-            async with session.post(
-                url,
-                data=GET_PAYLOAD,
-                headers=API_HEADERS,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
-                body = await resp.text(errors="replace")
-                status = resp.status
-        except (aiohttp.ClientError, TimeoutError) as err:
-            _LOGGER.warning("Cannot connect to %s: %r", url, err)
-            return "cannot_connect"
-
-        if status >= 400:
-            _LOGGER.warning(
-                "%s answered HTTP %s (is this really a WiNET module?): %.300s",
-                url, status, body,
-            )
-            return "http_error"
+        error, payload, body = await self._read(url, GET_PAYLOAD)
+        if error is not None:
+            return error
 
         try:
-            payload = json.loads(body)
-        except ValueError:
-            _LOGGER.warning(
-                "%s did not answer with JSON (is this really a WiNET module?): %.300s",
-                url, body,
-            )
-            return "not_json"
-
-        try:
-            check_register_layout(parse_registers(payload), REQUIRED_REGISTERS)
+            if detect_dialect(payload) == DIALECT_PARAMS:
+                # Firmware 0.79 and others: the values come from another category.
+                error, payload, body = await self._read(url, PARAMS_GET_PAYLOAD)
+                if error is not None:
+                    return error
+                registers = parse_registers(payload, DIALECT_PARAMS)
+                check_register_layout(registers, PARAMS_REQUIRED)
+            else:
+                check_register_layout(parse_registers(payload), REQUIRED_REGISTERS)
         except ValueError as err:
             _LOGGER.warning(
                 # Full body: the only clue for supporting another firmware's format
@@ -146,6 +132,38 @@ class ThermorossiConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             return "unexpected_payload"
         return None
+
+    async def _read(self, url: str, data: str) -> tuple[str | None, Any, str]:
+        """POST data to url: return (error key or None, decoded JSON, raw body)."""
+        try:
+            session = async_get_clientsession(self.hass)
+            async with session.post(
+                url,
+                data=data,
+                headers=API_HEADERS,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                body = await resp.text(errors="replace")
+                status = resp.status
+        except (aiohttp.ClientError, TimeoutError) as err:
+            _LOGGER.warning("Cannot connect to %s: %r", url, err)
+            return "cannot_connect", None, ""
+
+        if status >= 400:
+            _LOGGER.warning(
+                "%s answered HTTP %s (is this really a WiNET module?): %.300s",
+                url, status, body,
+            )
+            return "http_error", None, body
+
+        try:
+            return None, json.loads(body), body
+        except ValueError:
+            _LOGGER.warning(
+                "%s did not answer with JSON (is this really a WiNET module?): %.300s",
+                url, body,
+            )
+            return "not_json", None, body
 
     async def _firmware_version(self, host: str) -> str:
         """Return the module firmware version, best effort (only used in logs)."""

@@ -98,8 +98,34 @@ in the integration diagnostics. It can also be read with
 | WiNET firmware | Status |
 |----------------|--------|
 | 0.73 | ✅ Supported (developed and tested on it) |
-| 0.17, 0.43, 0.79 | ❌ Not supported yet. These firmwares use a different API (a short `params` list instead of the register map), so setup stops with *Unexpected data*. The same format has been reported on Thermorossi and on other brands (e.g. Stufe a Pellet Italia). Support is being worked on: see [Unsupported firmware](#unsupported-firmware) if you can help. |
+| 0.79 | ✅ Supported, with fewer entities: see [Firmware 0.79](#firmware-079). Decoded from the module's own web page and checked against a user's recording, not tested by the maintainer on a real module: please report anything odd. |
+| 0.17, 0.43 | Should work: these firmwares were reported with the same `params` format as 0.79, but nobody has confirmed it yet. Please report whether it works. |
 | Other | Unknown. If setup works, all entities should behave as described; if not, please open an issue with the log line described below. |
+
+### Firmware 0.79
+
+Firmware 0.79 speaks another dialect of the WiNET API (a short `params` list
+instead of the register map), also reported on 0.17 and 0.43 and on other
+brands (e.g. Stufe a Pellet Italia). The integration detects it by itself and creates
+only the entities this firmware provides:
+
+| Entity | Notes |
+|--------|-------|
+| Stove (`switch`) | See below |
+| State (`sensor`) | `off`, `wait_flame`, `start`, `work`, `brazier_cleaning`, `final_cleaning`, `standby`, `alarm`, `alarm_memory` |
+| Ambient temperature (`sensor`) | |
+| Alarm message (`sensor`), Alarm and Error stop (`binary_sensor`) | Only in the `alarm` and `alarm_memory` states, like the official page |
+| Internal clock (`sensor`) | Diagnostic |
+| Temperature setpoint, Power level (`number`) | Range and step taken from the module (power 1 to 5 on the tested stove) |
+
+Fan speed, flue temperature, pellets, chrono and weekly schedule are not
+available on this firmware.
+
+On/off is a single **toggle** command on this firmware. The integration only
+sends it when it moves the stove the requested way: turning on a stove that
+is not off, or turning off a stove that is off or in final cleaning, does
+nothing. Turning on during the final cleaning is refused, as on the official
+page. In the `alarm` states, turning the switch off acknowledges the alarm.
 
 ---
 
@@ -165,21 +191,11 @@ available while the integration is retrying to start.
 ### Unsupported firmware
 
 If setup fails with *Unexpected data*, your firmware speaks a different dialect
-of the WiNET API. A reply starting with `{"params":[[...` (or `{"params":[]`)
-is the `params` format listed in [Supported firmware](#supported-firmware).
-
-What is already known about the `params` format (details in
-[WINET_API.md](WINET_API.md)):
-
-- values are `[id, value]` pairs with their own numbering: id 50 is the
-  setpoint (°C) and id 51 the power level, both written with
-  `key=002&memory=1&regId=<id>&value=<value>`;
-- on/off seems to be a single **toggle** command (`key=022`): it turns the
-  stove on if it is off and off if it is on, so it can only be sent safely once
-  the stove state is decoded;
-- the meaning of the other ids (stove state, alarms, temperatures) is still
-  unknown. It is defined in the module's own web page, which is why a recording
-  of that page is needed.
+of the WiNET API, or a variant of the `params` format (see
+[Firmware 0.79](#firmware-079)) that does not provide the stove state, setpoint
+and power level (ids 2, 50 and 51) where the integration expects them. Its
+meaning is defined in the module's own web page, which is why a recording of
+that page is needed. What is known so far is in [WINET_API.md](WINET_API.md).
 
 **1. Open an issue** with the WiNET firmware version, the stove brand and model,
 and the full log line (*Settings → System → Logs*, entry from

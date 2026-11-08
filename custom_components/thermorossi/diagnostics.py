@@ -13,7 +13,8 @@ from homeassistant.core import HomeAssistant
 
 from .coordinator import ThermorossiConfigEntry
 
-TO_REDACT = {CONF_HOST, "currentIp", "currentGw", "currentMask", "network", "name"}
+# "ssid" comes with every "params" dialect (firmware 0.79) reply
+TO_REDACT = {CONF_HOST, "currentIp", "currentGw", "currentMask", "network", "name", "ssid"}
 
 
 async def async_get_config_entry_diagnostics(
@@ -30,6 +31,7 @@ async def async_get_config_entry_diagnostics(
         {
             "entry": dict(entry.data),
             "module_status": module_status,
+            "dialect": coordinator.dialect,
             "raw_replies": coordinator.last_payloads,
             "registers": coordinator.data,
         },

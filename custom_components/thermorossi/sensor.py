@@ -22,16 +22,18 @@ from .const import (
     REG_CHRONO_FIRST,
     CHRONO_DAYS,
     CHRONO_SLOTS_PER_DAY,
-    STATUS_CODES,
-    STATUS_OPTIONS,
-    ALARM_CODES,
-    ALARM_OPTIONS,
     TEMP_MUL,
     TEMP_OFFSET,
+    PARAM_AIR_TEMP,
+    PARAM_POWER,
+    PARAM_RTC_DAY,
+    PARAM_RTC_HOUR,
+    PARAM_RTC_MINUTE,
+    PARAM_SET_TEMP,
 )
-from .coordinator import ThermorossiConfigEntry
+from .coordinator import ThermorossiConfigEntry, ThermorossiCoordinator
 from .entity import ThermorossiEntity
-from .parsing import active_alarm_bits, decode_chrono, decode_rtc
+from .parsing import active_alarm_bits, decode_bcd, decode_chrono, decode_rtc
 
 
 async def async_setup_entry(
@@ -40,6 +42,16 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
+    if coordinator.is_params:
+        async_add_entities([
+            ThermorossiStatusSensor(coordinator, entry, "status"),
+            ThermorossiParamsSetTempSensor(coordinator, entry, "set_temp"),
+            ThermorossiParamsAirTempSensor(coordinator, entry, "air_temp"),
+            ThermorossiParamsPowerSensor(coordinator, entry, "fire_level"),
+            ThermorossiAlarmMessageSensor(coordinator, entry, "alarm_msg"),
+            ThermorossiParamsRtcSensor(coordinator, entry, "rtc"),
+        ])
+        return
     async_add_entities([
         ThermorossiStatusSensor(coordinator, entry, "status"),
         ThermorossiSetTempSensor(coordinator, entry, "set_temp"),
@@ -60,14 +72,19 @@ class ThermorossiBaseSensor(ThermorossiEntity, SensorEntity):
 class ThermorossiStatusSensor(ThermorossiBaseSensor):
     _attr_translation_key = "status"
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = STATUS_OPTIONS
+
+    def __init__(
+        self, coordinator: ThermorossiCoordinator, entry: ThermorossiConfigEntry, key: str
+    ) -> None:
+        super().__init__(coordinator, entry, key)
+        self._attr_options = coordinator.status_options
 
     @property
     def native_value(self) -> str | None:
         code = self.coordinator.status_code
         if code is None:
             return None
-        return STATUS_CODES.get(code, "unknown")
+        return self.coordinator.status_codes.get(code, "unknown")
 
 
 class ThermorossiSetTempSensor(ThermorossiBaseSensor):
@@ -131,7 +148,12 @@ class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
     """Shows the first active alarm message, or 'ok' when no alarm."""
     _attr_translation_key = "alarm_message"
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = ALARM_OPTIONS
+
+    def __init__(
+        self, coordinator: ThermorossiCoordinator, entry: ThermorossiConfigEntry, key: str
+    ) -> None:
+        super().__init__(coordinator, entry, key)
+        self._attr_options = coordinator.alarm_options
 
     @property
     def native_value(self) -> str | None:
@@ -140,7 +162,7 @@ class ThermorossiAlarmMessageSensor(ThermorossiBaseSensor):
         bits = active_alarm_bits(self.coordinator.alarm_code)
         if not bits:
             return "ok"
-        return ALARM_CODES.get(bits[0], "unknown")
+        return self.coordinator.alarm_codes.get(bits[0], "unknown")
 
 
 class ThermorossiFlueTempSensor(ThermorossiBaseSensor):
@@ -217,4 +239,74 @@ class ThermorossiRtcSensor(ThermorossiBaseSensor):
         if raw is None:
             return None
         day = decode_rtc(raw)[0]
+        return {"weekday": day if 1 <= day <= 7 else None}
+
+
+# --- "params" dialect (WiNET firmware 0.79) ---------------------------------
+
+
+class ThermorossiParamsAirTempSensor(ThermorossiBaseSensor):
+    """Ambient temperature (param 0, scaled by the reply's tempDiv)."""
+    _attr_translation_key = "air_temperature"
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+
+    @property
+    def native_value(self) -> float | None:
+        raw = self.coordinator.get(PARAM_AIR_TEMP)
+        if raw is None:
+            return None
+        return round(float(raw * self.coordinator.temp_div), 1)
+
+
+class ThermorossiParamsSetTempSensor(ThermorossiBaseSensor):
+    """Read-only duplicate of the setpoint number entity (disabled by default)."""
+    _attr_translation_key = "set_temperature"
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_entity_registry_enabled_default = False
+
+    @property
+    def native_value(self) -> float | None:
+        raw = self.coordinator.get(PARAM_SET_TEMP)
+        if raw is None:
+            return None
+        return round(float(raw * self.coordinator.set_temp_div), 1)
+
+
+class ThermorossiParamsPowerSensor(ThermorossiBaseSensor):
+    """Read-only duplicate of the power level number entity (disabled by default)."""
+    _attr_translation_key = "fire_level"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    @property
+    def native_value(self) -> int | None:
+        return self.coordinator.get(PARAM_POWER)
+
+
+class ThermorossiParamsRtcSensor(ThermorossiBaseSensor):
+    """Stove clock (params 59-61, hour and minute in BCD): state is HH:MM,
+    weekday (1=Monday) as attribute."""
+    _attr_translation_key = "rtc_clock"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def native_value(self) -> str | None:
+        hour = self.coordinator.get(PARAM_RTC_HOUR)
+        minute = self.coordinator.get(PARAM_RTC_MINUTE)
+        if hour is None or minute is None:
+            return None
+        hour, minute = decode_bcd(hour), decode_bcd(minute)
+        hour_label = f"{hour:02d}" if hour < 24 else "??"
+        minute_label = f"{minute:02d}" if minute < 60 else "??"
+        return f"{hour_label}:{minute_label}"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        day = self.coordinator.get(PARAM_RTC_DAY)
+        if day is None:
+            return None
         return {"weekday": day if 1 <= day <= 7 else None}

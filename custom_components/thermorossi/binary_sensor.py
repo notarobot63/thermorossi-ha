@@ -10,7 +10,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ALARM_CODES, REG_FLAGS, REG_PELLET
+from .const import REG_FLAGS, REG_PELLET
 from .coordinator import ThermorossiConfigEntry
 from .entity import ThermorossiEntity
 from .parsing import active_alarm_bits
@@ -22,6 +22,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
+    if coordinator.is_params:
+        async_add_entities([
+            ThermorossiErrorSensor(coordinator, entry, "error"),
+            ThermorossiAlarmSensor(coordinator, entry, "alarm"),
+        ])
+        return
     async_add_entities([
         ThermorossiErrorSensor(coordinator, entry, "error"),
         ThermorossiAlarmSensor(coordinator, entry, "alarm"),
@@ -35,7 +41,7 @@ class ThermorossiBaseBinarySensor(ThermorossiEntity, BinarySensorEntity):
 
 
 class ThermorossiErrorSensor(ThermorossiBaseBinarySensor):
-    """Active when the stove is in STOP error state (reg[6]==8)."""
+    """Active when the stove is stopped on an alarm (reg[6]==8, or params state 8/9)."""
     _attr_translation_key = "error_stop"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
@@ -45,7 +51,7 @@ class ThermorossiErrorSensor(ThermorossiBaseBinarySensor):
 
 
 class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
-    """Active when any alarm bit is set in the 32-bit alarm code (reg[8]+reg[9])."""
+    """Active when any alarm bit is set (reg[8]+reg[9], or param 3 in alarm states)."""
     _attr_translation_key = "alarm"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
@@ -56,7 +62,8 @@ class ThermorossiAlarmSensor(ThermorossiBaseBinarySensor):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         code = self.coordinator.alarm_code
-        active = [ALARM_CODES.get(bit, f"alarm_bit_{bit}") for bit in active_alarm_bits(code)]
+        codes = self.coordinator.alarm_codes
+        active = [codes.get(bit, f"alarm_bit_{bit}") for bit in active_alarm_bits(code)]
         return {"active_alarms": active, "code": code}
 
 

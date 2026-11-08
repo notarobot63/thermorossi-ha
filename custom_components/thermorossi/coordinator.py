@@ -6,7 +6,7 @@ import logging
 import time
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Any
+from typing import Any, NoReturn
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
@@ -37,12 +37,33 @@ from .const import (
     REG_ALARM_MSB,
     REG_STATUS,
     REQUIRED_REGISTERS,
+    ALARM_CODES,
+    ALARM_OPTIONS,
+    ERROR_STATE,
+    STATUS_CODES,
+    STATUS_OPTIONS,
+    DIALECT_PARAMS,
+    DIALECT_REGISTERS,
+    PARAMS_ALARM_CODES,
+    PARAMS_ALARM_OPTIONS,
+    PARAMS_DEFAULT_NUM_POWER,
+    PARAMS_ERROR_STATES,
+    PARAMS_GET_PAYLOAD,
+    PARAMS_REQUIRED,
+    PARAMS_STATUS_CODES,
+    PARAMS_STATUS_OPTIONS,
+    PARAMS_TOGGLE_GUARD,
+    PARAMS_TOGGLE_PAYLOAD,
+    PARAM_ALARM,
+    PARAM_STATUS,
 )
 from .parsing import (
     build_base_url,
     check_register_layout,
     compute_alarm_code,
+    detect_dialect,
     parse_registers,
+    positive_number,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -62,6 +83,14 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         self._chrono_registers: dict[int, int] = {}
         self._chrono_fetched_at: float | None = None
         self.firmware: str | None = None
+        # API dialect of the module, known after the first successful read
+        self.dialect: str | None = None
+        # "params" dialect: scale factors sent along with the values
+        self.temp_div: float = 1
+        self.set_temp_div: float = 1
+        self.num_power: int = PARAMS_DEFAULT_NUM_POWER
+        self._toggle_sent_at: float | None = None
+        self._toggle_status: int | None = None
         # Raw get-registers replies, by request payload, for diagnostics
         self.last_payloads: dict[str, Any] = {}
         # The WiNET module is a tiny single-threaded HTTP server: serialize
@@ -86,17 +115,55 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         return self.data.get(index)
 
     @property
+    def is_params(self) -> bool:
+        """Return True if the module speaks the "params" dialect (firmware 0.79)."""
+        return self.dialect == DIALECT_PARAMS
+
+    @property
     def status_code(self) -> int | None:
-        """Return the stove status code (register 6 & 0xFF), or None if unknown."""
+        """Return the stove status code, or None if unknown."""
+        if self.is_params:
+            return self.get(PARAM_STATUS)
         raw = self.get(REG_STATUS)
         return None if raw is None else raw & 0xFF
 
     @property
+    def status_codes(self) -> dict[int, str]:
+        """Return the status code -> state key table of this module."""
+        return PARAMS_STATUS_CODES if self.is_params else STATUS_CODES
+
+    @property
+    def status_options(self) -> list[str]:
+        """Return every state key the status sensor can take on this module."""
+        return PARAMS_STATUS_OPTIONS if self.is_params else STATUS_OPTIONS
+
+    @property
+    def in_error(self) -> bool:
+        """Return True when the stove is stopped on an alarm."""
+        if self.is_params:
+            return self.status_code in PARAMS_ERROR_STATES
+        return self.status_code == ERROR_STATE
+
+    @property
     def alarm_code(self) -> int:
-        """Return the 32-bit alarm code (0 = no alarm)."""
+        """Return the alarm bit field (0 = no alarm)."""
+        if self.is_params:
+            # The bit field briefly flickers during ignition; the official page
+            # only shows it once the stove is stopped on an alarm.
+            return (self.get(PARAM_ALARM) or 0) if self.in_error else 0
         return compute_alarm_code(
             self.get(REG_ALARM_MSB) or 0, self.get(REG_ALARM_LSB) or 0
         )
+
+    @property
+    def alarm_codes(self) -> dict[int, str]:
+        """Return the alarm bit -> translation key table of this module."""
+        return PARAMS_ALARM_CODES if self.is_params else ALARM_CODES
+
+    @property
+    def alarm_options(self) -> list[str]:
+        """Return every state key the alarm message sensor can take on this module."""
+        return PARAMS_ALARM_OPTIONS if self.is_params else ALARM_OPTIONS
 
     async def _post(self, path: str, payload: str) -> Any:
         """POST a form payload to the stove and return the decoded JSON body."""
@@ -127,31 +194,65 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
                 return "unknown"
         return self.firmware
 
-    async def _fetch_registers(
-        self, payload: str, required: tuple[int, ...] = ()
-    ) -> dict[int, int]:
-        """Read one register category from the stove."""
+    async def _read(self, payload: str) -> Any:
+        """POST a get-registers payload and return the decoded reply."""
         try:
             body = await self._post(API_GET_REGISTERS, payload)
         except (aiohttp.ClientError, TimeoutError) as err:
             raise UpdateFailed(f"Connection error to stove ({self.host}): {err}") from err
         except ValueError as err:
             raise UpdateFailed(f"Invalid response from stove ({self.host}): {err}") from err
-
         self.last_payloads[payload] = body
+        return body
+
+    async def _unsupported(self, err: ValueError) -> UpdateFailed:
+        return UpdateFailed(
+            f"Unsupported data from stove ({self.host}, WiNET firmware "
+            f"{await self._firmware_version()}): {err}"
+        )
+
+    async def _parse(
+        self, body: Any, field: str, required: tuple[int, ...] = ()
+    ) -> dict[int, int]:
         try:
-            registers = parse_registers(body)
+            registers = parse_registers(body, field)
             check_register_layout(registers, required)
         except ValueError as err:
-            raise UpdateFailed(
-                f"Unsupported data from stove ({self.host}, WiNET firmware "
-                f"{await self._firmware_version()}): {err}"
-            ) from err
+            raise await self._unsupported(err) from err
         return registers
 
+    async def _fetch_registers(
+        self, payload: str, required: tuple[int, ...] = ()
+    ) -> dict[int, int]:
+        """Read one register category from a "registers" dialect module."""
+        return await self._parse(await self._read(payload), DIALECT_REGISTERS, required)
+
     async def _async_update_data(self) -> dict[int, int]:
-        """Fetch the runtime registers, plus the weekly schedule when it is due."""
-        registers = await self._fetch_registers(GET_PAYLOAD, REQUIRED_REGISTERS)
+        """Fetch the runtime values, in the dialect the module speaks."""
+        if self.is_params:
+            body = await self._read(PARAMS_GET_PAYLOAD)
+            if isinstance(body, dict) and isinstance(body.get(DIALECT_REGISTERS), list):
+                # Firmware changed while running: the entities no longer match.
+                self._dialect_changed()
+            return await self._update_params(body)
+
+        body = await self._read(GET_PAYLOAD)
+        try:
+            dialect = detect_dialect(body)
+        except ValueError as err:
+            raise await self._unsupported(err) from err
+        if dialect == DIALECT_PARAMS:
+            if self.dialect is not None:
+                self._dialect_changed()
+            self.dialect = DIALECT_PARAMS
+            # The official page reads category 2: category 1 may come back empty.
+            return await self._update_params(await self._read(PARAMS_GET_PAYLOAD))
+        return await self._update_registers(body)
+
+    async def _update_registers(self, body: Any) -> dict[int, int]:
+        """Decode the runtime registers, plus the weekly schedule when it is due."""
+        registers = await self._parse(body, DIALECT_REGISTERS, REQUIRED_REGISTERS)
+        self.dialect = DIALECT_REGISTERS
 
         now = time.monotonic()
         if (
@@ -167,6 +268,23 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
                 _LOGGER.debug("Could not read the weekly schedule: %s", err)
 
         return {**self._chrono_registers, **registers}
+
+    async def _update_params(self, body: Any) -> dict[int, int]:
+        """Decode a "params" dialect reply and its scale factors."""
+        params = await self._parse(body, DIALECT_PARAMS, PARAMS_REQUIRED)
+        self.temp_div = positive_number(body, "tempDiv", 1)
+        self.set_temp_div = positive_number(body, "setTempDiv", 1)
+        self.num_power = int(positive_number(body, "numPower", PARAMS_DEFAULT_NUM_POWER))
+        return params
+
+    def _dialect_changed(self) -> NoReturn:
+        """The module switched API (firmware update): reload to rebuild the entities."""
+        _LOGGER.warning(
+            "Stove (%s) changed WiNET API dialect, probably after a firmware update: reloading",
+            self.host,
+        )
+        self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+        raise UpdateFailed(f"Stove ({self.host}) changed WiNET API dialect")
 
     def _schedule_fast_poll(self) -> None:
         """Schedule rapid refreshes after a command: every 1s for 10s, then every 2s up to 30s."""
@@ -200,9 +318,40 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         """Send the OFF command."""
         return await self.async_set_register(SET_REG_ID, CMD_OFF)
 
+    @property
+    def toggle_pending(self) -> bool:
+        """Return True if the last on/off toggle has not shown in the state yet."""
+        return (
+            self._toggle_sent_at is not None
+            and time.monotonic() - self._toggle_sent_at < PARAMS_TOGGLE_GUARD
+            and self.status_code == self._toggle_status
+        )
+
+    async def async_toggle_power(self) -> bool:
+        """Send the "params" dialect on/off TOGGLE.
+
+        The caller must have checked the current state: the same command turns
+        a stopped stove on and a running stove off.
+        """
+        try:
+            result = await self._post(API_GET_REGISTERS, PARAMS_TOGGLE_PAYLOAD)
+        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+            _LOGGER.error("Error sending on/off to stove (%s): %s", self.host, err)
+            return False
+        if not (isinstance(result, dict) and result.get("result") is True):
+            _LOGGER.error("Stove (%s) rejected on/off: %r", self.host, result)
+            return False
+        self._toggle_sent_at = time.monotonic()
+        self._toggle_status = self.status_code
+        self._schedule_fast_poll()
+        return True
+
     async def async_set_register(self, reg_id: int, value: int) -> bool:
         """Write a register, then poll quickly so the new state shows up fast."""
-        payload = f"key={SET_KEY}&regId={reg_id}&value={value}&result=false"
+        if self.is_params:
+            payload = f"key={SET_KEY}&memory=1&regId={reg_id}&value={value}"
+        else:
+            payload = f"key={SET_KEY}&regId={reg_id}&value={value}&result=false"
         try:
             result = await self._post(API_SET_REGISTER, payload)
         except (aiohttp.ClientError, TimeoutError, ValueError) as err:

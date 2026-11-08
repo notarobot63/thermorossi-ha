@@ -17,6 +17,10 @@ from .const import (
     REG_SET_TEMP,
     TEMP_MUL,
     TEMP_OFFSET,
+    PARAM_POWER,
+    PARAM_SET_TEMP,
+    PARAMS_SET_TEMP_RAW_MAX,
+    PARAMS_SET_TEMP_RAW_MIN,
 )
 from .coordinator import ThermorossiConfigEntry
 from .entity import ThermorossiEntity
@@ -28,6 +32,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
+    if coordinator.is_params:
+        async_add_entities([
+            ThermorossiParamsPowerNumber(coordinator, entry, "fire_level_set"),
+            ThermorossiParamsSetTempNumber(coordinator, entry, "set_temp_set"),
+        ])
+        return
     async_add_entities([
         ThermorossiFireLevelNumber(coordinator, entry, "fire_level_set"),
         ThermorossiFanSpeedNumber(coordinator, entry, "fan_speed_set"),
@@ -97,3 +107,52 @@ class ThermorossiSetTempNumber(ThermorossiBaseNumber):
 
     def _to_raw(self, value: float) -> int:
         return round((value - TEMP_OFFSET) / TEMP_MUL)
+
+
+# --- "params" dialect (WiNET firmware 0.79) ---------------------------------
+
+
+class ThermorossiParamsPowerNumber(ThermorossiBaseNumber):
+    """Power level (param 51), 1 to the reply's numPower."""
+
+    _attr_translation_key = "fire_level"
+    _attr_native_min_value = 1
+    _attr_native_step = 1
+    _register = PARAM_POWER
+    _error_message = "Failed to set fire level on the stove"
+
+    @property
+    def native_max_value(self) -> float:
+        return self.coordinator.num_power
+
+
+class ThermorossiParamsSetTempNumber(ThermorossiBaseNumber):
+    """Target room temperature (param 50, raw = celsius / setTempDiv)."""
+
+    _attr_translation_key = "set_temperature"
+    _attr_device_class = NumberDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _register = PARAM_SET_TEMP
+    _error_message = "Failed to set target temperature on the stove"
+
+    @property
+    def native_min_value(self) -> float:
+        return PARAMS_SET_TEMP_RAW_MIN * self.coordinator.set_temp_div
+
+    @property
+    def native_max_value(self) -> float:
+        return PARAMS_SET_TEMP_RAW_MAX * self.coordinator.set_temp_div
+
+    @property
+    def native_step(self) -> float:
+        return self.coordinator.set_temp_div
+
+    @property
+    def native_value(self) -> float | None:
+        raw = self.coordinator.get(PARAM_SET_TEMP)
+        if raw is None:
+            return None
+        return round(float(raw * self.coordinator.set_temp_div), 1)
+
+    def _to_raw(self, value: float) -> int:
+        return round(value / self.coordinator.set_temp_div)
