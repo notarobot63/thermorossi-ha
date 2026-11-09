@@ -1,149 +1,154 @@
 # Changelog
 
+## [Unreleased]
+
+### Documentation
+- `WINET_API.md` and this changelog are now in English, and so are the GitHub release notes.
+
 ## [1.5.3]
 
-### Corrections (format `params`, firmware 0.43)
-- Une réponse des réglages du module (`key=019`) vide ou sans diviseur n'est plus gardée jusqu'au redémarrage : elle est relue à chaque interrogation, et les températures se corrigent dès que le module renvoie ses diviseurs.
+### Fixed (`params` format, firmware 0.43)
+- A response from the module settings (`key=019`) that is empty or has no divisor is no longer kept until restart: it is re-read on every poll, and temperatures are corrected as soon as the module returns its divisors.
 
 ## [1.5.2]
 
-### Corrections (format `params`, firmware 0.43)
-- Température ambiante et consigne affichées au double de la valeur réelle (24 °C sur le poêle, 48 dans Home Assistant, issue #2). Le firmware 0.43 n'envoie pas les diviseurs (`tempDiv`, `setTempDiv`), ni `numPower` et `custom`, avec les valeurs : l'intégration les lit maintenant une fois dans les réglages du module (`key=019`), comme la page officielle.
+### Fixed (`params` format, firmware 0.43)
+- Ambient temperature and setpoint displayed at twice the actual value (24 °C on the stove, 48 in Home Assistant, issue #2). Firmware 0.43 does not send the divisors (`tempDiv`, `setTempDiv`), nor `numPower` and `custom`, with the values: the integration now reads them once from the module settings (`key=019`), like the official page.
 
 ### Documentation
-- README : firmware 0.43 pris en charge, 0.79 confirmé sur un vrai poêle.
+- README: firmware 0.43 supported, 0.79 confirmed on a real stove.
 
 ## [1.5.1]
 
-### Corrections (format `params`, firmware 0.79)
-- Consigne : la plage est de 5 à 40 °C quel que soit le pas. Sur un poêle au demi-degré (`setTempDiv` 0,5), elle était limitée à tort à 2,5-20 °C.
-- Marche/arrêt : deux commandes simultanées (une automatisation et l'interface, par exemple) ne peuvent plus envoyer deux bascules qui s'annulent.
-- Marche/arrêt : une demande contraire envoyée avant que la précédente soit visible dans l'état du poêle est refusée avec un message d'erreur, au lieu d'être ignorée sans prévenir.
-- Un module qui annonce une variante de modèle (`custom`) autre que celle décodée écrit un avertissement dans le journal : ses états et alarmes peuvent être mal nommés.
-- Un `numPower` incohérent dans la réponse du module ne peut plus donner une puissance maximale de 0.
-- Le message d'erreur d'un format inconnu cite les deux formats acceptés (`registers` ou `params`).
+### Fixed (`params` format, firmware 0.79)
+- Setpoint: the range is 5 to 40 °C regardless of the step. On a half-degree stove (`setTempDiv` 0.5), it was wrongly limited to 2.5-20 °C.
+- On/off: two simultaneous commands (an automation and the UI, for example) can no longer send two toggles that cancel each other out.
+- On/off: an opposite request sent before the previous one is visible in the stove state is rejected with an error message, instead of being silently ignored.
+- A module that reports a model variant (`custom`) other than the decoded one writes a warning to the log: its states and alarms may be misnamed.
+- An inconsistent `numPower` in the module response can no longer result in a maximum power of 0.
+- The error message for an unknown format now names both accepted formats (`registers` or `params`).
 
 ### Documentation
-- README, section *Firmware 0.79* : capteurs en lecture seule désactivés par défaut, consigne et puissance indisponibles en alarme, entités absentes à adapter dans les cartes et automatisations, variante de modèle, comportement de la bascule.
+- README, *Firmware 0.79* section: read-only sensors disabled by default, setpoint and power unavailable during an alarm, missing entities to adapt in cards and automations, model variant, toggle behavior.
 
 ## [1.5.0]
 
-### Ajouts
-- **Prise en charge du format `params`** (firmware WiNET 0.79, issues #2 et #4). Le module y parle un autre dialecte de l'API, détecté automatiquement à la première lecture. Le même format est signalé sur les firmwares 0.17 et 0.43 : ils devraient fonctionner aussi, sans confirmation à ce jour. Entités disponibles : poêle (marche/arrêt), état, température ambiante, message d'alarme, alarme, arrêt sur erreur, horloge interne, consigne et puissance réglables. Le décodage vient du script de la page officielle du module (`management.js`), recoupé avec l'enregistrement d'un utilisateur.
-  - La marche/arrêt de ce firmware est une bascule : l'intégration ne l'envoie que si elle va dans le sens demandé, et pas une seconde fois tant que l'état du poêle n'a pas changé (15 s au plus).
-  - Si le firmware du module change pendant que Home Assistant tourne, l'intégration se recharge pour recréer les bonnes entités.
+### Added
+- **Support for the `params` format** (WiNET firmware 0.79, issues #2 and #4). The module speaks another dialect of the API there, detected automatically on the first read. The same format is reported on firmwares 0.17 and 0.43: they should work too, without confirmation to date. Available entities: stove (on/off), state, ambient temperature, alarm message, alarm, stop on error, internal clock, adjustable setpoint and power. The decoding comes from the official module page script (`management.js`), cross-checked with a user recording.
+  - On/off on this firmware is a toggle: the integration only sends it if it goes in the requested direction, and not a second time until the stove state has changed (15 s at most).
+  - If the module firmware changes while Home Assistant is running, the integration reloads to recreate the right entities.
 
-### Corrections
-- Diagnostics : le nom du réseau WiFi renvoyé par le firmware 0.79 (`ssid`) est maintenant masqué.
+### Fixed
+- Diagnostics: the WiFi network name returned by firmware 0.79 (`ssid`) is now redacted.
 
 ## [1.4.2]
 
 ### Documentation
-- README : le format `params` non pris en charge est signalé sur les firmwares 0.17, 0.43 et 0.79, et sur d'autres marques que Thermorossi (Stufe a Pellet Italia).
-- README, section *Unsupported firmware* : comment reconnaître ce format, ce qui en est déjà connu (consigne `50`, puissance `51`, marche/arrêt par bascule `key=022`), les informations à joindre à une issue et une procédure de capture HAR plus précise (rechargement de la page indispensable, ordre des actions, capture en cas d'alarme, HAR à zipper).
+- README: the unsupported `params` format is reported on firmwares 0.17, 0.43 and 0.79, and on brands other than Thermorossi (Stufe a Pellet Italia).
+- README, *Unsupported firmware* section: how to recognize this format, what is already known about it (setpoint `50`, power `51`, on/off by toggle `key=022`), the information to include in an issue, and a more precise HAR capture procedure (page reload required, order of actions, capture during an alarm, HAR to zip).
 
 ## [1.4.1]
 
 ### Documentation
-- README : section *Supported firmware* (0.73 pris en charge, 0.79 pas encore) avec la façon de lire la version du firmware, et section *Troubleshooting* regroupée et complétée : erreur d'adresse invalide, procédure de capture HAR pour un firmware non pris en charge, valeurs qui semblent fausses (température ambiante absente, programme décalé par l'horloge du poêle, commandes lentes à s'appliquer, module saturé).
-- README : le capteur *Weekly schedule* manquait dans la liste des entités.
-- Exemples d'automatisations : les notifications passent par `notify.notify` (le notificateur par défaut de Home Assistant) au lieu d'un `rest_command` Signal à configurer.
-- `WINET_API.md` : nouvelle section sur le firmware 0.79 (format `params`, écriture avec `memory=1`, consigne en `50`, puissance en `51`, marche/arrêt par bascule `key=022`) et liste de ce qui reste à élucider.
+- README: *Supported firmware* section (0.73 supported, 0.79 not yet) with how to read the firmware version, and a consolidated and expanded *Troubleshooting* section: invalid address error, HAR capture procedure for an unsupported firmware, values that seem wrong (missing ambient temperature, schedule shifted by the stove clock, commands slow to apply, saturated module).
+- README: the *Weekly schedule* sensor was missing from the entity list.
+- Automation examples: notifications go through `notify.notify` (the Home Assistant default notifier) instead of a Signal `rest_command` to configure.
+- `WINET_API.md`: new section on firmware 0.79 (`params` format, writing with `memory=1`, setpoint in `50`, power in `51`, on/off by toggle `key=022`) and a list of what remains to be clarified.
 
 ## [1.4.0]
 
-### Ajouts
-- **Diagnostics** (*⋮ → Télécharger les diagnostics*) : version du firmware WiNET, réponses brutes du module et registres décodés, sans l'adresse IP ni le nom du réseau WiFi. Ils restent disponibles quand l'intégration ne démarre plus après une mise à jour du firmware.
+### Added
+- **Diagnostics** (*⋮ → Download diagnostics*): WiNET firmware version, raw module responses and decoded registers, without the IP address or the WiFi network name. They remain available when the integration no longer starts after a firmware update.
 
-### Corrections
-- Quand le module WiNET répond dans un format inconnu (signalé sur le firmware 0.79), le journal affiche désormais la réponse complète au lieu de ses 300 premiers caractères, ainsi que la version du firmware.
-- Plus d'avertissement de dépréciation au démarrage : la recherche de l'appareil utilise `async_get_device_by_identifier` quand Home Assistant le fournit (l'ancien appel cessera de fonctionner en 2027.8).
-- Un firmware qui renvoie bien une liste de registres, mais sans l'état, la consigne ou la température ambiante, est refusé avec un message qui cite sa version, au lieu d'afficher des valeurs fausses.
+### Fixed
+- When the WiNET module responds in an unknown format (reported on firmware 0.79), the log now shows the full response instead of its first 300 characters, along with the firmware version.
+- No more deprecation warning at startup: device lookup uses `async_get_device_by_identifier` when Home Assistant provides it (the old call will stop working in 2027.8).
+- A firmware that does return a register list, but without the state, setpoint or ambient temperature, is rejected with a message naming its version, instead of showing wrong values.
 
 ### Documentation
-- L'intégration fait maintenant partie du catalogue par défaut de HACS : la section Installation du README indique simplement de chercher « Thermorossi » dans HACS, sans ajouter de dépôt personnalisé.
+- The integration is now part of the HACS default catalog: the README Installation section simply says to search for "Thermorossi" in HACS, without adding a custom repository.
 
 ## [1.3.0]
 
-### Ajouts
-- **Capteur « Programme hebdomadaire »** (diagnostic) : il expose le programme horaire du poêle, jusqu'ici invisible depuis Home Assistant. Sa valeur est le nombre de créneaux programmés dans la semaine, et chaque jour est un attribut contenant ses créneaux au format `06:00-08:30`.
-  - Le programme est relu toutes les 10 minutes seulement, car il ne change quasiment jamais.
-  - Si cette lecture échoue, seul ce capteur devient indisponible : les autres entités ne sont pas affectées.
-  - Les créneaux sont évalués par l'horloge interne du poêle, pas par celle du réseau. Une horloge qui a dérivé décale tout le programme. Le capteur « Horloge interne » permet de le vérifier.
+### Added
+- **"Weekly schedule" sensor** (diagnostic): it exposes the stove's time program, until now invisible from Home Assistant. Its value is the number of slots scheduled in the week, and each day is an attribute containing its slots in the `06:00-08:30` format.
+  - The schedule is re-read only every 10 minutes, since it almost never changes.
+  - If this read fails, only this sensor becomes unavailable: the other entities are not affected.
+  - Slots are evaluated by the stove's internal clock, not the network clock. A clock that has drifted shifts the whole schedule. The "Internal clock" sensor lets you check it.
 
 ### Documentation
-- `WINET_API.md` : le programme horaire, les statistiques de service et les paramètres d'usine sont documentés, la carte des registres est complétée (versions de firmware, sondes des modèles hydro), et une section liste ce qui reste non élucidé.
-- Correction : la lecture brute de registres prend les paramètres `startAddr` et `nPoints` (les noms donnés jusqu'ici renvoyaient une erreur qui ressemblait à un refus d'accès).
-- Configuration réseau documentée : état WiFi, redémarrage et mise à jour du firmware (page `status.html`), scan et connexion WiFi (`networks.html`), DHCP ou IP fixe (`dhcp.html`), avec les paramètres réels de chaque endpoint.
+- `WINET_API.md`: the time program, service statistics and factory parameters are documented, the register map is completed (firmware versions, hydro model probes), and a section lists what remains unclear.
+- Fix: raw register reading takes the `startAddr` and `nPoints` parameters (the names given so far returned an error that looked like an access denial).
+- Network configuration documented: WiFi state, restart and firmware update (`status.html` page), WiFi scan and connection (`networks.html`), DHCP or static IP (`dhcp.html`), with the actual parameters of each endpoint.
 
-> **Rectificatif.** La première version de ces notes affirmait que les endpoints WiFi et DHCP étaient absents du firmware. C'était faux : ils sont servis par des pages accessibles depuis l'onglet WI-FI, que l'analyse initiale n'avait pas suivies. La documentation a été corrigée après la publication de la 1.3.0, sans changement de l'intégration.
+> **Correction.** The first version of these notes claimed that the WiFi and DHCP endpoints were absent from the firmware. That was false: they are served by pages accessible from the WI-FI tab, which the initial analysis had not followed. The documentation was corrected after the 1.3.0 release, with no change to the integration.
 
 ## [1.2.1]
 
-### Ajouts
-- Icône de l'intégration (`brand/icon.png`) fournie directement avec l'intégration : elle s'affiche dans Home Assistant 2026.3+ et dans HACS. C'est aussi un prérequis pour entrer dans la liste par défaut de HACS.
+### Added
+- Integration icon (`brand/icon.png`) shipped directly with the integration: it appears in Home Assistant 2026.3+ and in HACS. It is also a prerequisite for entering the HACS default list.
 
-### Interne
-- La validation HACS de la CI tourne sans exception (la vérification des icônes n'est plus ignorée).
+### Internal
+- HACS validation in CI runs without exceptions (the icon check is no longer ignored).
 
 ## [1.2.0]
 
-⚠️ **Home Assistant 2024.11 minimum requis** (au lieu de 2024.1 annoncé jusqu'ici, qui était déjà faux : la 1.1.0 plantait en dessous de 2024.4).
+⚠️ **Home Assistant 2024.11 minimum required** (instead of 2024.1 announced until now, which was already wrong: 1.1.0 crashed below 2024.4).
 
-### Corrections
-- **Noms des entités en anglais** : le fichier `translations/en.json` manquait. Pour toute installation qui n'était ni en français ni en italien, les entités n'avaient pas de nom (toutes « Thermorossi », `sensor.thermorossi_2`, `_3`…) et le formulaire de configuration n'avait pas de libellés.
-- **Rafraîchissement rapide après une commande** : il ne fonctionnait pas. Le debouncer du coordinator limitait les relectures à une toutes les 10 s au lieu de chaque seconde. Il s'applique maintenant aussi après un changement de puissance, de ventilation ou de consigne, pas seulement après on/off.
-- **Températures ambiante et fumées** : elles restaient « disponibles » avec leur dernière valeur quand le poêle ne répondait plus. Elles passent maintenant en indisponible comme les autres entités.
-- **Arrêt sur erreur** : l'interrupteur n'est plus grisé dans l'état `stop`. Il apparaît « allumé » et l'éteindre envoie la commande OFF, qui acquitte l'alarme (comme le bouton du poêle). Le rallumer est refusé tant que l'alarme n'est pas acquittée.
-- **Adresses IPv6** : elles étaient acceptées mais produisaient une URL invalide. Elles sont maintenant entourées de crochets.
-- **Carte Lovelace native** : les bannières d'alarme affichaient le code du template au lieu du message, car les cartes `tile` n'interprètent pas les templates. Une carte pour la consigne de température a aussi été ajoutée.
-- **Messages d'alarme** : la carte Bubble et les automatisations affichent le message traduit (`state_translated`) au lieu de la clé brute (`no_pellets`…).
-- **Registres absents** : les entités `number` renvoient « inconnu » au lieu d'inventer une valeur (0 ou 1) quand un registre est absent.
+### Fixed
+- **English entity names**: the `translations/en.json` file was missing. For any installation that was neither French nor Italian, entities had no name (all "Thermorossi", `sensor.thermorossi_2`, `_3`...) and the configuration form had no labels.
+- **Fast refresh after a command**: it did not work. The coordinator debouncer limited re-reads to one every 10 s instead of every second. It now also applies after a change to power, fan or setpoint, not only after on/off.
+- **Ambient and flue temperatures**: they stayed "available" with their last value when the stove stopped responding. They now become unavailable like the other entities.
+- **Stop on error**: the switch is no longer greyed out in the `stop` state. It appears "on" and turning it off sends the OFF command, which acknowledges the alarm (like the stove button). Turning it back on is refused until the alarm is acknowledged.
+- **IPv6 addresses**: they were accepted but produced an invalid URL. They are now wrapped in brackets.
+- **Native Lovelace card**: the alarm banners showed the template code instead of the message, because `tile` cards do not interpret templates. A card for the temperature setpoint was also added.
+- **Alarm messages**: the Bubble card and automations show the translated message (`state_translated`) instead of the raw key (`no_pellets`...).
+- **Missing registers**: `number` entities report "unknown" instead of inventing a value (0 or 1) when a register is missing.
 
 ### Configuration
-- **Diagnostic de l'erreur « Réponse inattendue du poêle »** : elle est remplacée par trois erreurs explicites.
-  - *Erreur HTTP* : un autre appareil répond à cette IP.
-  - *Pas un module WiNET* : la réponse n'est pas du JSON.
-  - *Données inattendues* : firmware inconnu.
+- **Diagnosing the "Unexpected response from stove" error**: it is replaced by three explicit errors.
+  - *HTTP error*: another device is responding at this IP.
+  - *Not a WiNET module*: the response is not JSON.
+  - *Unexpected data*: unknown firmware.
 
-  Chaque échec est aussi détaillé dans les journaux de Home Assistant (statut HTTP et début de la réponse). Le README a une section « Troubleshooting ».
-- **Reconfiguration** : on peut changer l'adresse IP du poêle (⋮ → Reconfigurer) sans supprimer l'intégration. Entités, historique et automatisations sont conservés.
-- Le formulaire réaffiche l'adresse saisie après une erreur. L'adresse est normalisée (espaces, majuscules, crochets IPv6).
+  Each failure is also detailed in the Home Assistant logs (HTTP status and start of the response). The README has a "Troubleshooting" section.
+- **Reconfiguration**: you can change the stove IP address (*⋮ → Reconfigure*) without deleting the integration. Entities, history and automations are kept.
+- The form re-displays the entered address after an error. The address is normalized (spaces, uppercase, IPv6 brackets).
 
-### Entités
-- Les capteurs **État** et **Message alarme** sont des capteurs *enum* : ils proposent une liste des valeurs possibles dans l'éditeur d'automatisations.
-- **Horloge interne** : l'état vaut maintenant `HH:MM`, et le jour est dans l'attribut `weekday` (1 = lundi). Avant, c'était « Lun 14:05 », figé en français. ⚠️ *Changement de format.*
-- **Horloge interne** et **Température fumées** sont classées en *diagnostic*.
-- Les capteurs en lecture seule **Puissance**, **Vitesse ventilateur** et **Consigne**, qui doublonnent les curseurs, sont désactivés par défaut. Cela ne concerne que les nouvelles installations.
-- Les icônes sont déclarées dans `icons.json` (icône de l'état selon l'état du poêle). L'ancien `icons.json` n'était pas valide.
+### Entities
+- The **State** and **Alarm message** sensors are *enum* sensors: they offer a list of possible values in the automation editor.
+- **Internal clock**: the state is now `HH:MM`, and the day is in the `weekday` attribute (1 = Monday). It used to be "Mon 14:05", hardcoded in French. ⚠️ *Format change.*
+- **Internal clock** and **Flue temperature** are classified as *diagnostic*.
+- The read-only **Power**, **Fan speed** and **Setpoint** sensors, which duplicate the sliders, are disabled by default. This only affects new installations.
+- Icons are declared in `icons.json` (state icon depending on the stove state). The old `icons.json` was not valid.
 
-### Interne
-- Les lectures et les écritures vers le module WiNET sont sérialisées par un seul verrou.
-- L'appareil est identifié par l'ID de l'entrée et non plus par l'IP. L'appareil existant est migré automatiquement, sans doublon.
-- `manifest.json` : clés triées (exigé par hassfest), `integration_type` et `issue_tracker` ajoutés.
-- Tests Home Assistant (config flow, entités, rafraîchissement rapide, arrêt sur erreur, migration) et CI GitHub Actions (hassfest, validation HACS, tests).
-- Les releases GitHub sont publiées automatiquement depuis ce fichier quand un tag `vX.Y.Z` est poussé.
+### Internal
+- Reads and writes to the WiNET module are serialized by a single lock.
+- The device is identified by the entry ID instead of the IP. The existing device is migrated automatically, without duplicates.
+- `manifest.json`: keys sorted (required by hassfest), `integration_type` and `issue_tracker` added.
+- Home Assistant tests (config flow, entities, fast refresh, stop on error, migration) and GitHub Actions CI (hassfest, HACS validation, tests).
+- GitHub releases are published automatically from this file when a `vX.Y.Z` tag is pushed.
 
 ### Documentation
-- README : tableau des entités complété (fumées, horloge, chrono, état `no_prog`), plage de puissance corrigée (0–5), correspondance des entity_id FR/EN, dépendances de la carte Bubble (Mushroom, card-mod).
-- La compatibilité Piazzetta, Nordica, Extraflame et Edilkamin n'a jamais été testée : elle est retirée du README.
-- Les automatisations utilisent la syntaxe HA actuelle (`triggers:` / `actions:`).
-- `WINET_API.md` documente l'écriture des registres 12, 13 et 15.
+- README: entity table completed (flue, clock, timer, `no_prog` state), power range corrected (0-5), FR/EN entity_id mapping, Bubble card dependencies (Mushroom, card-mod).
+- Compatibility with Piazzetta, Nordica, Extraflame and Edilkamin has never been tested: it is removed from the README.
+- Automations use current HA syntax (`triggers:` / `actions:`).
+- `WINET_API.md` documents writing registers 12, 13 and 15.
 
 ## [1.1.0]
 
-### Ajouts
-- Nouvelle entité `number` pour la consigne de température (7-30°C, pas de 0,5°C)
-- Capteurs température fumées, horloge RTC interne, chrono actif + automatismes FR
+### Added
+- New `number` entity for the temperature setpoint (7-30 °C, 0.5 °C step)
+- Flue temperature, internal RTC clock, active timer sensors + FR automations
 
-### Corrections
-- Icône d'état incohérente sur l'état "sans programme" (no_prog)
-- Parsing des registres plus robuste (payloads malformés, valeurs non numériques)
-- Écritures de registre sécurisées par verrou, nettoyage du fast-poll au déchargement
-- Entités `number` découplées et garde-fous en cas d'état erreur
+### Fixed
+- Inconsistent state icon on the "no schedule" state (no_prog)
+- More robust register parsing (malformed payloads, non-numeric values)
+- Register writes secured by lock, fast-poll cleanup on unload
+- `number` entities decoupled and safeguards in case of error state
 
 ## [1.0.0]
 
-Première version publique : pilotage local via l'API HTTP WiNET, interrupteur,
-capteur d'état, curseurs puissance/ventilation, capteurs d'erreur, d'alarme et
-de pellets, traductions anglais/français/italien.
+First public version: local control via the WiNET HTTP API, switch,
+state sensor, power/fan sliders, error, alarm and pellet sensors,
+English/French/Italian translations.

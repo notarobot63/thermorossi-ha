@@ -1,143 +1,131 @@
-# Thermorossi WiNET - Documentation technique API
+# Thermorossi WiNET - Technical API Documentation
 
-Résultat de sessions de rétro-ingénierie du module WiFi WiNET embarqué sur les poêles à
-pellets Thermorossi. L'analyse repose sur l'inspection du trafic HTTP et du code servi par
-le module :
+Result of reverse-engineering sessions of the WiNET WiFi module embedded in Thermorossi pellet stoves. The analysis is based on inspection of the HTTP traffic and of the code served by the module:
 
-| Page | Script | Contenu |
+| Page | Script | Content |
 |------|--------|---------|
-| `management.html` | `management.js` | Pilotage du poêle, programme horaire, sections protégées par PIN. La page porte la table de décodage des registres dans les attributs de ses éléments |
-| `status.html` | `status.js` | Onglet « WI-FI » : état réseau, redémarrage, mise à jour du firmware |
-| `networks.html` | `networks.js` | Scan des réseaux WiFi et connexion (bouton de `status.html`) |
-| `dhcp.html` | `dhcp.js` | DHCP ou IP fixe (bouton de `status.html`) |
+| `management.html` | `management.js` | Stove control, schedule program, PIN-protected sections. The page carries the register decoding table in the attributes of its elements |
+| `status.html` | `status.js` | "WI-FI" tab: network status, restart, firmware update |
+| `networks.html` | `networks.js` | WiFi network scan and connection (button on `status.html`) |
+| `dhcp.html` | `dhcp.js` | DHCP or static IP (button on `status.html`) |
 
-`main.min.js` regroupe jQuery et la fonction de traduction commune. Les pages ne sont
-reliées que par des navigations en JavaScript (`App.Utilities.GoToUrl`), pas par des liens.
+`main.min.js` bundles jQuery and the shared translation function. The pages are linked only through JavaScript navigations (`App.Utilities.GoToUrl`), not through links.
 
-Sauf mention contraire, tout ce qui suit a été vérifié sur un module réel. Les écritures
-et les actions qui pourraient déconnecter le module sont documentées d'après le code de
-l'interface, sans avoir été exécutées : c'est indiqué à chaque fois.
+Unless stated otherwise, everything below was verified on a real module. Writes and actions that could disconnect the module are documented from the interface code, without having been executed: this is indicated each time.
 
 ---
 
-## Le module WiNET
+## The WiNET module
 
-- **Matériel** : puce Espressif, probablement un ESP8266 (les codes d'état WiFi 0–5
-  reprennent l'énumération du SDK ESP8266). Serveur HTTP embarqué `NetSoftware-httpd/0.4`
-- **Chemins inconnus** : le serveur ferme la connexion sans réponse HTTP
-- **Rôle** : pont entre le bus Modbus interne du poêle et une interface web/HTTP
-- **Interface web** : `http://<ip>/management.html`
-- **Adresse par défaut** : DHCP (IP fixe recommandée sur le routeur)
-- **Firmware testé** : 0.73. Le firmware 0.79 parle un autre dialecte de l'API, voir
-  [Firmware 0.79](#firmware-079-format-params) (pris en charge, confirmé par des utilisateurs en 0.79 et 0.43, non testé par nous)
+- **Hardware**: Espressif chip, probably an ESP8266 (the WiFi status codes 0–5 match the ESP8266 SDK enumeration). Embedded HTTP server `NetSoftware-httpd/0.4`
+- **Unknown paths**: the server closes the connection without an HTTP response
+- **Role**: bridge between the stove's internal Modbus bus and a web/HTTP interface
+- **Web interface**: `http://<ip>/management.html`
+- **Default address**: DHCP (static IP recommended on the router)
+- **Tested firmware**: 0.73. Firmware 0.79 speaks another dialect of the API, see [Firmware 0.79](#firmware-079-params-format) (supported, confirmed by users on 0.79 and 0.43, not tested by us)
 
-Le module est un **proxy mince** : il lit les registres Modbus du board principal et les expose
-via HTTP. Il ne stocke pas lui-même les valeurs - elles viennent du poêle.
+The module is a **thin proxy**: it reads the Modbus registers of the main board and exposes them over HTTP. It does not store the values itself; they come from the stove.
 
 ---
 
-## Endpoints HTTP
+## HTTP endpoints
 
-Les requêtes sont des `POST` avec `Content-Type: application/x-www-form-urlencoded`
-et le header `X-Requested-With: XMLHttpRequest`, sauf `GET /ajax/get-dhcp`. Les endpoints
-réseau sont décrits dans [Configuration WiFi](#configuration-wifi).
+Requests are `POST` with `Content-Type: application/x-www-form-urlencoded` and the header `X-Requested-With: XMLHttpRequest`, except `GET /ajax/get-dhcp`. The network endpoints are described in [WiFi configuration](#wifi-configuration).
 
-### Lecture de registres
+### Reading registers
 
 ```
 POST /ajax/get-registers
 ```
 
-Le paramètre `key` détermine le mode de lecture :
+The `key` parameter determines the read mode:
 
 | key | Description |
 |-----|-------------|
-| `020` | Lecture par catégorie (`category=1/2/3`) |
-| `030` | Lecture brute par plage (`startAddr=N&nPoints=N`, voir ci-dessous) |
+| `020` | Read by category (`category=1/2/3`) |
+| `030` | Raw read by range (`startAddr=N&nPoints=N`, see below) |
 
-Réponse :
+Response:
 ```json
 {"registers": [[index, value], [index, value], ...]}
 ```
 
-**Catégories (key=020) :**
+**Categories (key=020):**
 
-| category | Contenu |
+| category | Content |
 |----------|---------|
-| 1 | Registres temps-réel (état, températures, alarmes…) |
-| 2 | Programme horaire, registres 24–65 (voir [Programme horaire](#programme-horaire-category2)) |
-| 3 | Informations firmware (84 registres ASCII, index 128-211) |
+| 1 | Real-time registers (status, temperatures, alarms...) |
+| 2 | Schedule program, registers 24–65 (see [Schedule program](#schedule-program-category2)) |
+| 3 | Firmware information (84 ASCII registers, index 128-211) |
 
-**Lecture brute (key=030) :**
+**Raw read (key=030):**
 
 ```
 POST /ajax/get-registers
 Body: key=030&startAddr=177&nPoints=18
 ```
 
-- `nPoints` est plafonné à 125 par requête, `startAddr + nPoints` doit rester ≤ 1024.
-- **Aucune authentification n'est requise** : toute la plage 0–1023 est lisible sans PIN.
-- Les noms de paramètres sont stricts : `startRegId`/`regCount` renvoient simplement
-  `{"result": false}`, ce qui ressemble à un refus d'accès mais n'en est pas un.
-- Réponse : `{"key": 30, "registers": [[index, value], ...]}`.
+- `nPoints` is capped at 125 per request, `startAddr + nPoints` must stay ≤ 1024.
+- **No authentication is required**: the whole range 0–1023 is readable without a PIN.
+- Parameter names are strict: `startRegId`/`regCount` simply return `{"result": false}`, which looks like an access denial but is not one.
+- Response: `{"key": 30, "registers": [[index, value], ...]}`.
 
-### Écriture d'un registre
+### Writing a register
 
 ```
 POST /ajax/set-register
 Body: key=002&regId=N&value=N&result=false
 ```
 
-Réponse : `{"result": true}` ou `{"result": false}`
+Response: `{"result": true}` or `{"result": false}`
 
-### Écriture multiple (programme horaire)
+### Multiple write (schedule program)
 
 ```
 POST /ajax/set-registers
-Body: key=003 à 009  (un par jour : lundi=003 … dimanche=009)
+Body: key=003 to 009  (one per day: Monday=003 … Sunday=009)
 ```
 
-La copie du programme d'un jour sur un autre passe par `key=010` (paramètres `src` et `dest`).
+Copying the program from one day to another goes through `key=010` (parameters `src` and `dest`).
 
-### Commandes principales
+### Main commands
 
 ```
 POST /ajax/set-register
-Body: key=002&regId=1&value=23040&result=false   → Allumage (0x5A00)
-Body: key=002&regId=1&value=42240&result=false   → Extinction (0xA500)
+Body: key=002&regId=1&value=23040&result=false   → Power on (0x5A00)
+Body: key=002&regId=1&value=42240&result=false   → Power off (0xA500)
 ```
 
-Les deux valeurs sont des compléments binaires l'une de l'autre.
+The two values are bitwise complements of each other.
 
-### Réglages écrits par l'intégration
+### Settings written by the integration
 
-L'intégration écrit aussi les registres suivants via le même endpoint
-(`key=002&regId=N&value=N&result=false`), avec le même index qu'en lecture :
+The integration also writes the following registers through the same endpoint (`key=002&regId=N&value=N&result=false`), with the same index as in reading:
 
-| regId | Réglage | Valeur écrite |
+| regId | Setting | Value written |
 |-------|---------|---------------|
-| 12 | Niveau de puissance | 0–5 |
-| 13 | Vitesse ventilateur | 1–6 |
-| 15 | Consigne température | `(°C + 18) / 0,25` (7–30 °C) |
+| 12 | Power level | 0–5 |
+| 13 | Fan speed | 1–6 |
+| 15 | Temperature setpoint | `(°C + 18) / 0.25` (7–30 °C) |
 
-Le module répond `{"result": true}` quand l'écriture est acceptée.
+The module replies `{"result": true}` when the write is accepted.
 
-### Chrono (programme horaire on/off)
-
-```
-POST /ajax/get-registers
-Body: key=021&value=1    → activer le chrono
-Body: key=021&value=0    → désactiver le chrono
-```
-
-### Renommer le poêle
+### Chrono (on/off schedule program)
 
 ```
 POST /ajax/get-registers
-Body: key=051&name=MonPoele
+Body: key=021&value=1    → enable the chrono
+Body: key=021&value=0    → disable the chrono
 ```
 
-### Authentification
+### Renaming the stove
+
+```
+POST /ajax/get-registers
+Body: key=051&name=MyStove
+```
+
+### Authentication
 
 ```
 POST /ajax/login
@@ -147,249 +135,226 @@ POST /ajax/logout
 Body: key=logout
 ```
 
-Réponse login : `{"logged": true, "type": 1}` ou `{"logged": false, "type": 0}`
+Login response: `{"logged": true, "type": 1}` or `{"logged": false, "type": 0}`
 
-Le serveur maintient **une seule session globale** (pas de sessions par client). Une
-connexion authentifiée affecte tous les clients simultanés.
+The server maintains **a single global session** (no per-client sessions). An authenticated login affects all simultaneous clients.
 
 ---
 
-## Carte des registres (category=1)
+## Register map (category=1)
 
-| Index | Nom | Format | Notes |
-|-------|-----|--------|-------|
+| Index | Name | Format | Notes |
+|-------|------|--------|-------|
 | 0 | - | - | |
-| 1 | Commande | word | Écriture : 0x5A00=ON, 0xA500=OFF |
-| 3 | Flags modèle | flags | bit2=Air ARM, bit13=WiFi, bit6=room control |
-| 4 | Version firmware afficheur | word | 0 si l'afficheur ne la publie pas |
-| 5 | Version firmware carte de puissance | word | idem |
-| 6 | État | `& 0xFF` | Voir codes état ci-dessous |
-| 7 | Flags | flags | bit0=chrono actif, bit6=room control, bit7=eco |
-| 8 | Alarme LSB | word | Bits d'alarme 0–15 |
-| 9 | Alarme MSB | word | Bits d'alarme 16–31 |
-| 10 | Pellets | word | 0=OK, autre=réserve basse/vide |
-| 11 | Mode opération | word | |
-| 12 | Niveau puissance | 0–5 | Niveau de flamme actuel |
-| 13 | Vitesse ventilateur | 1–6 | Vitesse ventilateur actuelle |
-| 15 | Consigne température | raw | `valeur × 0,25 − 18` = °C |
-| 16 | Température ambiante | raw | `valeur × 0,25 − 18` = °C (module room control) |
-| 17–20 | Sondes hydro | °C direct | Modèles hydro (eau chaudière, eau sanitaire…). ~99–100 sur un modèle air : sondes absentes |
-| 21 | Température fumées | raw °C | Valeur directe en degrés Celsius |
-| 22 | Horloge RTC | encodé | bits[13:11]=jour(1-7), bits[10:6]=heure, bits[5:0]=minute |
-| 112 | Consigne hydro | °C direct | Plage 65–73 °C, modèles hydro uniquement |
+| 1 | Command | word | Write: 0x5A00=ON, 0xA500=OFF |
+| 3 | Model flags | flags | bit2=Air ARM, bit13=WiFi, bit6=room control |
+| 4 | Display firmware version | word | 0 if the display does not publish it |
+| 5 | Power board firmware version | word | same |
+| 6 | Status | `& 0xFF` | See status codes below |
+| 7 | Flags | flags | bit0=chrono active, bit6=room control, bit7=eco |
+| 8 | Alarm LSB | word | Alarm bits 0–15 |
+| 9 | Alarm MSB | word | Alarm bits 16–31 |
+| 10 | Pellets | word | 0=OK, other=low/empty reserve |
+| 11 | Operating mode | word | |
+| 12 | Power level | 0–5 | Current flame level |
+| 13 | Fan speed | 1–6 | Current fan speed |
+| 15 | Temperature setpoint | raw | `value × 0.25 − 18` = °C |
+| 16 | Room temperature | raw | `value × 0.25 − 18` = °C (room control module) |
+| 17–20 | Hydro probes | °C direct | Hydro models (boiler water, domestic water...). ~99–100 on an air model: probes absent |
+| 21 | Flue gas temperature | raw °C | Direct value in degrees Celsius |
+| 22 | RTC clock | encoded | bits[13:11]=day(1-7), bits[10:6]=hour, bits[5:0]=minute |
+| 112 | Hydro setpoint | °C direct | Range 65–73 °C, hydro models only |
 
-L'interface web décode chaque registre à partir d'attributs portés par le HTML
-(`reg`, `regType`, `mul`, `offset`, `mask`, `shift`, `unit`, `min`, `max`) : la table
-de décodage est déclarative dans `management.html`, pas dans le JavaScript.
+The web interface decodes each register from attributes carried by the HTML (`reg`, `regType`, `mul`, `offset`, `mask`, `shift`, `unit`, `min`, `max`): the decoding table is declarative in `management.html`, not in the JavaScript.
 
-**Conversion température** (reg 15 et 16) :
+**Temperature conversion** (reg 15 and 16):
 ```
 temp_celsius = raw_value × 0.25 − 18.0
 ```
 
-**Décodage RTC** (reg 22) :
+**RTC decoding** (reg 22):
 ```
-jour    = (val >> 11) & 0x7     # 1=Lun … 7=Dim
-heure   = (val >> 6)  & 0x1F
+day     = (val >> 11) & 0x7     # 1=Mon … 7=Sun
+hour    = (val >> 6)  & 0x1F
 minute  = val         & 0x3F
 ```
 
 ---
 
-## Programme horaire (category=2)
+## Schedule program (category=2)
 
-Registres 24 à 65 : 6 registres par jour, du lundi au dimanche, soit 3 créneaux de
-(allumage, extinction). Adresse du jour N (1 = lundi) : `24 + 6 × (N − 1)`.
+Registers 24 to 65: 6 registers per day, from Monday to Sunday, i.e. 3 slots of (on, off). Address of day N (1 = Monday): `24 + 6 × (N − 1)`.
 
-| Décalage dans le jour | Contenu |
+| Offset within the day | Content |
 |-----------------------|---------|
-| +0 / +1 | Créneau 1 : allumage / extinction |
-| +2 / +3 | Créneau 2 : allumage / extinction |
-| +4 / +5 | Créneau 3 : allumage / extinction |
+| +0 / +1 | Slot 1: on / off |
+| +2 / +3 | Slot 2: on / off |
+| +4 / +5 | Slot 3: on / off |
 
-Encodage d'un horaire : `(heure << 8) | minute` (ex. `0x081E` = 08:30). Un créneau dont
-l'allumage égale l'extinction (typiquement `0`/`0`) est inutilisé.
+Time encoding: `(hour << 8) | minute` (e.g. `0x081E` = 08:30). A slot whose on time equals its off time (typically `0`/`0`) is unused.
 
-Les créneaux sont évalués par l'horloge interne du poêle (reg 22), pas par l'heure du
-réseau : une horloge dérivée décale tout le programme.
+Slots are evaluated by the stove's internal clock (reg 22), not by network time: a drifted clock shifts the whole program.
 
 ---
 
-## Registres de service et d'usine
+## Service and factory registers
 
-Lisibles via `key=030`, mais **toujours à 0** tant que le poêle n'est pas en mode service
-(activé depuis l'écran LCD) : le board ne les pousse pas au module WiFi en temps normal.
+Readable via `key=030`, but **always at 0** as long as the stove is not in service mode (enabled from the LCD screen): the board does not push them to the WiFi module under normal conditions.
 
-Statistiques (177–194). Les compteurs sur deux registres forment un mot de 32 bits,
-registre N = poids fort, N+1 = poids faible :
+Statistics (177–194). Counters spanning two registers form a 32-bit word, register N = most significant, N+1 = least significant:
 
-| Registres | Libellé firmware | Signification |
+| Registers | Firmware label | Meaning |
 |-----------|------------------|---------------|
-| 177 | MAIN HZ. | Fréquence secteur |
-| 178–179 | SMOKE FAN SPEED | Vitesse extracteur de fumées |
-| 180 | COCLEA ON | Vis sans fin (temps de marche) |
-| 181–182 | NR. START TOT. | Nombre total d'allumages |
-| 183–184 | NR. START CHRONO | Allumages par le programme horaire |
-| 185–186 | NR. START EXT. | Allumages par commande externe |
-| 187–188 | WORK HOUR TOT. | Heures de fonctionnement |
-| 189–190 | COCLEA HOUR TOT. | Heures de vis sans fin |
-| 191–192 | T SMOKE | Température fumées |
-| 193–194 | T BOARD | Température carte |
+| 177 | MAIN HZ. | Mains frequency |
+| 178–179 | SMOKE FAN SPEED | Flue gas extractor speed |
+| 180 | COCLEA ON | Auger (running time) |
+| 181–182 | NR. START TOT. | Total number of ignitions |
+| 183–184 | NR. START CHRONO | Ignitions by schedule program |
+| 185–186 | NR. START EXT. | Ignitions by external command |
+| 187–188 | WORK HOUR TOT. | Operating hours |
+| 189–190 | COCLEA HOUR TOT. | Auger hours |
+| 191–192 | T SMOKE | Flue gas temperature |
+| 193–194 | T BOARD | Board temperature |
 
-Paramètres d'usine (220, 256–287) : test I/O (256), désactivation encodeur/sonde fumées
-(257, 258), vitesses du ventilateur d'ambiance par niveau (259–265, 220), vitesses
-extracteur (266–274), temps de marche vis sans fin par niveau (275–280), PID (281–282),
-temporisations et seuils d'alarme (283–287). Ce sont des réglages de combustion :
-**ne jamais les écrire**.
+Factory parameters (220, 256–287): I/O test (256), encoder/flue gas probe disable (257, 258), room fan speeds per level (259–265, 220), extractor speeds (266–274), auger running times per level (275–280), PID (281–282), timings and alarm thresholds (283–287). These are combustion settings: **never write them**.
 
 ---
 
-## Codes d'état (reg[6] & 0xFF)
+## Status codes (reg[6] & 0xFF)
 
-| Valeur | Code | Description |
+| Value | Code | Description |
 |--------|------|-------------|
-| 0, 1 | `off` | Éteint (0 = `----` dans le firmware : état non encore reçu du board) |
-| 2 | `start` | Allumage en cours |
-| 3 | `work` | Chauffe |
-| 4 | `wait_on` | En attente d'allumage |
-| 5 | `temp_ok` | Température atteinte |
-| 6 | `no_prog` | Actif mais sans programme horaire |
-| 7 | `wait_time` | Attente du créneau horaire |
-| 8 | `stop` | Arrêt sur erreur |
-| 9 | `sunout` | Arrêt estival |
+| 0, 1 | `off` | Off (0 = `----` in the firmware: status not yet received from the board) |
+| 2 | `start` | Ignition in progress |
+| 3 | `work` | Heating |
+| 4 | `wait_on` | Waiting for ignition |
+| 5 | `temp_ok` | Temperature reached |
+| 6 | `no_prog` | Active but without a schedule program |
+| 7 | `wait_time` | Waiting for the time slot |
+| 8 | `stop` | Stop on error |
+| 9 | `sunout` | Summer shutdown |
 
 ---
 
-## Codes d'alarme (reg[8] + reg[9], 32 bits)
+## Alarm codes (reg[8] + reg[9], 32 bits)
 
-L'alarme est un champ de bits sur 32 bits. Chaque bit correspond à une alarme distincte.
-Plusieurs alarmes peuvent être actives simultanément.
+The alarm is a 32-bit bit field. Each bit corresponds to a distinct alarm. Several alarms can be active at the same time.
 
 | Bit | Code | Description |
 |-----|------|-------------|
-| 0 | `no_pellets` | Pas de pellets / nettoyer brûleur |
-| 1 | `start_failed` | Démarrage échoué / nettoyer brûleur |
-| 2 | `flue_gas_blocked` | Fumées non évacuées / vérifier conduit |
-| 3 | `max_temp` | Alarme température maximale |
-| 4 | `flue_probe_disconnected` | Sonde température fumées déconnectée |
-| 5 | `exhaust_fan_rpm` | Capteur RPM extracteur fumées |
-| 6 | `exhaust_fan_fault` | Défaut ventilateur fumées |
-| 7 | `seismic` | Alarme sismique |
-| 8 | `probe_s1_disconnected` | Sonde S1 déconnectée |
-| 9 | `probe_s2_disconnected` | Sonde S2 déconnectée |
-| 10 | `probe_acs_disconnected` | Sonde ACS déconnectée |
-| 11 | `probe_sta_disconnected` | Sonde STA déconnectée |
-| 12 | `cleaning_motor` | Défaut moteur nettoyage |
-| 13 | `ash_drawer_full` | Tiroir à cendres plein |
-| 14 | `ash_drawer_missing` | Tiroir à cendres absent |
-| 15 | `lcd_timeout` | Timeout LCD |
-| 16 | `probe_stg_disconnected` | Sonde STG déconnectée |
+| 0 | `no_pellets` | No pellets / clean the burner |
+| 1 | `start_failed` | Ignition failed / clean the burner |
+| 2 | `flue_gas_blocked` | Flue gases not evacuated / check the duct |
+| 3 | `max_temp` | Maximum temperature alarm |
+| 4 | `flue_probe_disconnected` | Flue gas temperature probe disconnected |
+| 5 | `exhaust_fan_rpm` | Flue gas extractor RPM sensor |
+| 6 | `exhaust_fan_fault` | Flue gas fan fault |
+| 7 | `seismic` | Seismic alarm |
+| 8 | `probe_s1_disconnected` | Probe S1 disconnected |
+| 9 | `probe_s2_disconnected` | Probe S2 disconnected |
+| 10 | `probe_acs_disconnected` | ACS probe disconnected |
+| 11 | `probe_sta_disconnected` | STA probe disconnected |
+| 12 | `cleaning_motor` | Cleaning motor fault |
+| 13 | `ash_drawer_full` | Ash drawer full |
+| 14 | `ash_drawer_missing` | Ash drawer missing |
+| 15 | `lcd_timeout` | LCD timeout |
+| 16 | `probe_stg_disconnected` | STG probe disconnected |
 
 ---
 
-## Authentification PIN
+## PIN authentication
 
-Le module expose 3 niveaux d'accès PIN, protégeant des sections de l'interface web :
+The module exposes 3 PIN access levels, protecting sections of the web interface:
 
-| Type | Niveau | Débloque |
+| Type | Level | Unlocks |
 |------|--------|---------|
-| 1 | Tech support | Langue de l'interface, statistiques board |
-| 2 | Factory | Tests I/O, réglages usine (reg 256+) |
-| 3 | Debug | Browser Modbus brut de l'interface (l'API `key=030` sous-jacente, elle, répond sans PIN) |
+| 1 | Tech support | Interface language, board statistics |
+| 2 | Factory | I/O tests, factory settings (reg 256+) |
+| 3 | Debug | Raw Modbus browser of the interface (the underlying `key=030` API, however, responds without a PIN) |
 
-**PIN confirmé :** valeur retirée de ce document public (firmware partagé entre poêles, un PIN divulgué ici serait valide ailleurs). Type=1 (tech support) a un PIN valide sur 4 chiffres, gardé en note privée.
+**Confirmed PIN:** value removed from this public document (firmware shared between stoves, a PIN disclosed here would be valid elsewhere). Type=1 (tech support) has a valid 4-digit PIN, kept in a private note.
 
-Les types 2 et 3 n'ont pas de PIN valide dans la plage 0000–9999 (brute force exhaustif).
-Le PIN est comparé de façon **exacte sur 4 caractères** (ni préfixe, ni suffixe).
+Types 2 and 3 have no valid PIN in the 0000–9999 range (exhaustive brute force). The PIN is compared **exactly on 4 characters** (no prefix, no suffix).
 
-**Limitation :** les registres tech (177–194 : compteurs de démarrages, heures de
-fonctionnement…) sont stockés sur le board principal. Le module WiFi ne les reçoit que si
-le poêle est en mode service, accessible uniquement depuis l'écran LCD physique.
+**Limitation:** tech registers (177–194: ignition counters, operating hours...) are stored on the main board. The WiFi module only receives them if the stove is in service mode, accessible only from the physical LCD screen.
 
 ---
 
-## Configuration WiFi
+## WiFi configuration
 
-### Lire l'état WiFi
+### Read WiFi state
 
 ```
 POST /ajax/get-registers
 Body: key=020&category=1
 ```
 
-La réponse porte, à côté de `registers` : `rssi`, `authLevel`, `name`, `localWeb` et `cat`.
+The response carries, alongside `registers`: `rssi`, `authLevel`, `name`, `localWeb` and `cat`.
 
-Aucune des pages réseau ne demande de PIN dans l'interface. `get-status` et `get-dhcp`
-répondent sans session.
+None of the network pages asks for a PIN in the interface. `get-status` and `get-dhcp` respond without a session.
 
-### État réseau détaillé
+### Detailed network state
 
 ```
 POST /ajax/get-status
 ```
 
-Vérifié. Réponse :
+Verified. Response:
 
 ```json
 {"status": 5, "lastDisconnectReason": 2, "currentIp": "192.168.1.100",
  "currentMask": "255.255.255.0", "currentGw": "192.168.1.1", "client": 3,
- "network": "MonReseau", "rssi": -67, "fwVer": "0.73", "boot": 2}
+ "network": "MyNetwork", "rssi": -67, "fwVer": "0.73", "boot": 2}
 ```
 
-| Champ | Contenu |
+| Field | Content |
 |-------|---------|
-| `status` | Connexion WiFi : 0 inactive, 1 en cours, 2 mauvais mot de passe, 3 point d'accès introuvable, 4 échec, 5 connecté avec IP |
-| `client` | Connexion au cloud : 0 inactive, 1 en pause, 2 connecté, 3 non connecté |
-| `lastDisconnectReason` | Code de déconnexion WiFi Espressif (1–24, 200–204) |
-| `network`, `rssi` | SSID et signal en dBm |
-| `currentIp`, `currentMask`, `currentGw` | Adressage en cours |
-| `fwVer` | Version du firmware du module |
+| `status` | WiFi connection: 0 inactive, 1 connecting, 2 wrong password, 3 access point not found, 4 failure, 5 connected with IP |
+| `client` | Cloud connection: 0 inactive, 1 paused, 2 connected, 3 not connected |
+| `lastDisconnectReason` | Espressif WiFi disconnect code (1–24, 200–204) |
+| `network`, `rssi` | SSID and signal in dBm |
+| `currentIp`, `currentMask`, `currentGw` | Current addressing |
+| `fwVer` | Module firmware version |
 
-### Redémarrage et mise à jour du firmware
+### Reboot and firmware update
 
-Documenté d'après `status.js`, **non exécuté**.
+Documented from `status.js`, **not executed**.
 
 ```
-POST /ajax/reboot          → {"result": true}, le module redémarre
-POST /ajax/upgrade         (sans corps) le module télécharge lui-même son firmware
-POST /ajax/check-upg-sts   → {"flag": 1} en cours, {"flag": 2} terminé
+POST /ajax/reboot          → {"result": true}, the module reboots
+POST /ajax/upgrade         (no body) the module downloads its own firmware
+POST /ajax/check-upg-sts   → {"flag": 1} in progress, {"flag": 2} finished
 ```
 
-`upgrade` n'envoie aucun fichier : le module va chercher la mise à jour sur internet.
-Un poêle bloqué vers internet ne peut donc pas être mis à jour par ce biais.
+`upgrade` sends no file: the module fetches the update from the internet. A stove with no internet access therefore cannot be updated this way.
 
-### Scan des réseaux et connexion
+### Network scan and connection
 
-Documenté d'après `networks.js`, **non exécuté** : le scan accepte une option de
-reconnexion et une connexion change de réseau, deux opérations qui peuvent couper le
-module du réseau en cours.
+Documented from `networks.js`, **not executed**: the scan accepts a reconnect option and a connection switches networks, two operations that can cut the module off from its current network.
 
 ```
 POST /ajax/get-networks    reconnect=…
-     → {"available": [...], "network": "<SSID actuel>"}
-POST /ajax/connect         network=MonReseau&password=motdepasse
-     → {"connected": true} ou {"error": "…"}
+     → {"available": [...], "network": "<current SSID>"}
+POST /ajax/connect         network=MyNetwork&password=secret
+     → {"connected": true} or {"error": "…"}
 ```
 
-### Configuration IP
+### IP configuration
 
 ```
 GET  /ajax/get-dhcp
      → {"dhcpEnabled": 1, "staticIp": "0.0.0.0", "staticMask": "0.0.0.0", "staticGw": "0.0.0.0"}
 POST /ajax/set-dhcp        dhcpEnabled=1|0&staticIp=…&staticMask=…&staticGw=…
-     → {"result": true} ou {"error": "…"}
+     → {"result": true} or {"error": "…"}
 ```
 
-`get-dhcp` est vérifié. `set-dhcp` est documenté d'après `dhcp.js`, **non exécuté**.
-Quand `dhcpEnabled=1`, l'interface renvoie les adresses statiques déjà stockées sans les
-modifier.
+`get-dhcp` is verified. `set-dhcp` is documented from `dhcp.js`, **not executed**. When `dhcpEnabled=1`, the interface returns the already stored static addresses without modifying them.
 
-Une page de réglages `settings.html` est prévue par l'interface, mais son bouton est
-commenté dans `status.html` et la page n'existe pas sur ce firmware.
+The interface provides for a `settings.html` settings page, but its button is commented out in `status.html` and the page does not exist on this firmware.
 
 ---
 
-## Exemple : lecture complète de l'état
+## Example: full state read
 
 ```python
 import urllib.request, json
@@ -417,34 +382,26 @@ chrono_on  = bool(regs.get(7, 0) & 0x1)
 
 ---
 
-## Firmware 0.79 (format `params`)
+## Firmware 0.79 (`params` format)
 
-Pris en charge par l'intégration. Sources :
+Supported by the integration. Sources:
 
-- deux enregistrements (HAR) de l'interface officielle (`management.html`) fournis par
-  des utilisateurs dont le module est en 0.79. Le second contient les scripts de la page
-  (`management.js`), d'où vient la table de décodage ci-dessous, ainsi qu'un allumage,
-  des changements de consigne et de puissance, puis un arrêt ;
-- deux projets publics qui pilotent des modules renvoyant le même format :
+- two recordings (HAR) of the official interface (`management.html`) provided by users whose module runs 0.79. The second contains the page scripts (`management.js`), which is where the decoding table below comes from, along with a power-on, setpoint and power changes, then a shutdown;
+- two public projects that control modules returning the same format:
   [jeffreybrits/Winet_Pellet_Stove](https://github.com/jeffreybrits/Winet_Pellet_Stove)
-  et [DarkSario/invicta-lodi8-ha-integration](https://github.com/DarkSario/invicta-lodi8-ha-integration)
-  (poêle Invicta).
+  and [DarkSario/invicta-lodi8-ha-integration](https://github.com/DarkSario/invicta-lodi8-ha-integration)
+  (Invicta stove).
 
-Rien n'a été vérifié sur un module 0.79 par nous-mêmes, mais un utilisateur a confirmé le
-fonctionnement sur son poêle (issue #4). Le firmware 0.43 parle le même format, avec une
-différence sur les réglages (voir *Lecture*), d'après les diagnostics d'un utilisateur
-(issue #2).
+Nothing has been verified on a 0.79 module by us, but one user confirmed it works on their stove (issue #4). Firmware 0.43 speaks the same format, with a difference in the settings (see *Reading*), according to a user's diagnostics (issue #2).
 
-### Lecture
+### Reading
 
 ```
 POST /ajax/get-registers
 Body: key=020&category=2
 ```
 
-L'interface officielle interroge `category=2` (et `category=4` sur l'onglet horloge, avec
-le même contenu). Sur certains modules, `category=1` renvoie une liste vide. À la place de
-`registers`, la réponse porte une courte liste de paires `[id, valeur]` :
+The official interface queries `category=2` (and `category=4` on the clock tab, with the same content). On some modules, `category=1` returns an empty list. Instead of `registers`, the response carries a short list of `[id, value]` pairs:
 
 ```json
 {
@@ -459,120 +416,86 @@ le même contenu). Sur certains modules, `category=1` renvoie une liste vide. À
 }
 ```
 
-(la réponse réelle contient aussi `ssid`, retiré ici). Les numéros n'ont rien à voir avec
-la carte des registres du 0.73.
+(the real response also contains `ssid`, removed here). The numbers have nothing to do with the 0.73 register map.
 
-Les diviseurs `tempDiv`, `setTempDiv`, ainsi que `numPower` et `custom`, viennent aussi
-de `POST /ajax/get-registers` `key=019` (réglages du module, avec le programme hebdomadaire
-`mon` … `sun`), que la page lit à son chargement. Le firmware **0.43** ne les envoie que là :
-sa réponse `key=020&category=2` se limite à `params`, `cat`, `signal`, `bk`, `localWeb`,
-`authLevel`, `model` et `name`. Sans eux, la température et la consigne sortent doublées
-(`tempDiv` et `setTempDiv` valent 0,5 sur ce poêle). Le 0.43 renvoie aussi les ids `10`,
-`11`, `12` (120, 10, 69 sur la capture), non élucidés.
+The divisors `tempDiv` and `setTempDiv`, as well as `numPower` and `custom`, also come from `POST /ajax/get-registers` `key=019` (module settings, with the weekly schedule `mon` … `sun`), which the page reads on load. Firmware **0.43** only sends them there: its `key=020&category=2` response is limited to `params`, `cat`, `signal`, `bk`, `localWeb`, `authLevel`, `model` and `name`. Without them, temperature and setpoint come out doubled (`tempDiv` and `setTempDiv` are 0.5 on this stove). 0.43 also returns ids `10`, `11`, `12` (120, 10, 69 in the capture), unexplained.
 
-`custom` est le code de personnalisation du modèle : la page change d'affichage et de
-tables pour une centaine de codes. Tout ce qui suit vaut pour la branche par défaut
-(`65535`, celle des captures).
+`custom` is the model customization code: the page changes its display and tables for about a hundred codes. Everything below applies to the default branch (`65535`, the one in the captures).
 
-### Table de décodage
+### Decoding table
 
-| id / champ | Sens | Décodage |
-|------------|------|----------|
-| `0` | Température ambiante | × `tempDiv` °C (46 × 0,5 = 23 °C) |
-| `2` | État du poêle | Table ci-dessous |
-| `3` | Alarmes | Champ de bits ci-dessous, affiché seulement dans les états 8 et 9 |
-| `50` | Consigne | × `setTempDiv` °C, bornes brutes 5 à 40 |
-| `51` | Puissance | 1 à `numPower` |
-| `59` | Horloge du poêle : jour de la semaine | 1 = lundi … 7 = dimanche |
-| `60`, `61` | Horloge du poêle : heure, minute | BCD (`0x16` = 16 h) |
-| `62`, `63`, `64` | Horloge du poêle : jour, mois, année | BCD, année + 2000 |
-| `inetTime` | Date et heure locales du réseau | `[année, mois, jour, h, min, s, ?, jour de la semaine]` |
+| id / field | Meaning | Decoding |
+|------------|---------|----------|
+| `0` | Ambient temperature | × `tempDiv` °C (46 × 0.5 = 23 °C) |
+| `2` | Stove state | Table below |
+| `3` | Alarms | Bit field below, shown only in states 8 and 9 |
+| `50` | Setpoint | × `setTempDiv` °C, raw bounds 5 to 40 |
+| `51` | Power | 1 to `numPower` |
+| `59` | Stove clock: day of the week | 1 = Monday … 7 = Sunday |
+| `60`, `61` | Stove clock: hour, minute | BCD (`0x16` = 16 h) |
+| `62`, `63`, `64` | Stove clock: day, month, year | BCD, year + 2000 |
+| `inetTime` | Local network date and time | `[year, month, day, h, min, s, ?, day of the week]` |
 
-États (id `2`) :
+States (id `2`):
 
-| Code | Page officielle | Clé dans l'intégration |
-|------|-----------------|------------------------|
+| Code | Official page | Key in the integration |
+|------|---------------|------------------------|
 | 0 | OFF | `off` |
-| 1, 2 | ATTESA FIAMMA (attente flamme) | `wait_flame` |
-| 3 | ACCENSIONE (allumage) | `start` |
-| 4 | LAVORO (travail) | `work` |
-| 5 | PULIZIA BRACIERE (nettoyage brasier) | `brazier_cleaning` |
-| 6 | PULIZIA FINALE (nettoyage final) | `final_cleaning` |
+| 1, 2 | ATTESA FIAMMA (waiting for flame) | `wait_flame` |
+| 3 | ACCENSIONE (ignition) | `start` |
+| 4 | LAVORO (work) | `work` |
+| 5 | PULIZIA BRACIERE (brazier cleaning) | `brazier_cleaning` |
+| 6 | PULIZIA FINALE (final cleaning) | `final_cleaning` |
 | 7 | STAND-BY | `standby` |
 | 8 | ALLARME | `alarm` |
-| 9 | MEMORIA ALLARME (alarme mémorisée) | `alarm_memory` |
+| 9 | MEMORIA ALLARME (stored alarm) | `alarm_memory` |
 
-En état 4, si la température ambiante atteint la consigne, la page affiche « LAVORO
-(MODULA) » (code interne 200), sans valeur propre dans `params`.
+In state 4, if the ambient temperature reaches the setpoint, the page displays "LAVORO (MODULA)" (internal code 200), with no value of its own in `params`.
 
-Alarmes (id `3`, premier bit actif affiché) : bit 0 sonde fumées, 1 surchauffe fumées,
-2 extracteur, 3 échec d'allumage, 4 pas de pellets, 5 manque de pression, 6 sécurité
-thermique, 7 trappe à pellets ouverte. La valeur passe brièvement à 4 au début d'un
-allumage sans que le poêle soit en alarme : la page ne l'affiche qu'en états 8 et 9.
+Alarms (id `3`, first active bit displayed): bit 0 flue probe, 1 flue overheating, 2 extractor, 3 ignition failure, 4 no pellets, 5 lack of pressure, 6 thermal safety, 7 pellet hatch open. The value briefly goes to 4 at the start of an ignition without the stove being in alarm: the page only displays it in states 8 and 9.
 
-### Écriture
+### Writing
 
 ```
 POST /ajax/set-register
 Body: key=002&memory=1&regId=50&value=24
 ```
 
-Même endpoint qu'en 0.73, avec un paramètre `memory=1` en plus. Le module répond
-`{"result":true}` et la lecture suivante reflète la nouvelle valeur.
+Same endpoint as in 0.73, with an extra `memory=1` parameter. The module responds `{"result":true}` and the next read reflects the new value.
 
-### Marche / arrêt
+### On / off
 
 ```
 POST /ajax/get-registers
 Body: key=022
 ```
 
-Réponse `{"result":true}`. C'est une **bascule** : la même commande allume un poêle éteint
-et éteint un poêle allumé. La page officielle propose « allumer » si l'état vaut 0 et
-« éteindre » sinon, et refuse d'allumer pendant le nettoyage final. Observé sur la
-capture : 0 → commande → 1 (2 s plus tard) → 2, puis commande → 6.
+Response `{"result":true}`. It is a **toggle**: the same command turns an off stove on and an on stove off. The official page offers "switch on" if the state is 0 and "switch off" otherwise, and refuses to switch on during final cleaning. Observed in the capture: 0 → command → 1 (2 s later) → 2, then command → 6.
 
-L'intégration ne l'envoie que si elle va dans le sens demandé, et pas une seconde fois
-tant que l'état n'a pas changé depuis la précédente (15 s au plus).
+The integration only sends it if it goes in the requested direction, and not a second time as long as the state has not changed since the previous one (15 s at most).
 
-### Non élucidé
+### Unresolved
 
-- `4` : vaut 4 à 6 sur la capture, monte pendant le nettoyage final. La page l'appelle
-  « température des fumées » (+30 °C) pour d'autres codes de personnalisation, mais ne
-  l'affiche pas pour `65535`.
-- `302`, `303` : compte à rebours de la phase en cours (`303` décroît d'environ une unité
-  par seconde, repart à 180 en début de phase 2).
-- `300`, `301`, `logTemp`, `mode`, `modeThreeshold`, `tStart`/`tStop`, `isOld`, `model`,
-  `tsense` (sondes sans fil).
+- `4`: reads 4 to 6 in the capture, rises during final cleaning. The page calls it "flue temperature" (+30 °C) for other customization codes, but does not display it for `65535`.
+- `302`, `303`: countdown of the current phase (`303` decreases by about one unit per second, restarts at 180 at the start of phase 2).
+- `300`, `301`, `logTemp`, `mode`, `modeThreeshold`, `tStart`/`tStop`, `isOld`, `model`, `tsense` (wireless probes).
 
 ---
 
-## Limites connues
+## Known limitations
 
-- **Session globale** : une seule session active côté serveur. Un login depuis un client
-  affecte tous les autres. À prendre en compte pour l'automatisation.
-- **Registres tech vides** : les statistiques du board (heures de fonctionnement, compteur
-  de démarrages…) ne sont pas exposées sans interaction physique avec le poêle.
-- **Pas de WebSocket** : le module ne fait que du polling HTTP. L'interface web poll toutes
-  les 500 ms.
-- **Résistance au brute force** : au-delà de ~20 req/s, le module devient injoignable
-  pendant quelques secondes (protection implicite par saturation, pas de ban IP).
-- **Verrouillage purement côté client** : le niveau d'accès renvoyé par `/ajax/login` ne
-  sert qu'à afficher un conteneur déjà présent dans la page (`techParamsContainer`,
-  `factoryParamsContainer`, `debugParamsContainer`). Le contenu de ces sections est servi
-  à tout le monde, et `key=030` lit les registres correspondants sans authentification.
+- **Global session**: only one active session server-side. A login from one client affects all the others. To be taken into account for automation.
+- **Empty tech registers**: board statistics (operating hours, start counter, etc.) are not exposed without physical interaction with the stove.
+- **No WebSocket**: the module only does HTTP polling. The web interface polls every 500 ms.
+- **Brute-force resistance**: above ~20 req/s, the module becomes unreachable for a few seconds (implicit protection by saturation, no IP ban).
+- **Purely client-side locking**: the access level returned by `/ajax/login` only serves to display a container already present in the page (`techParamsContainer`, `factoryParamsContainer`, `debugParamsContainer`). The content of these sections is served to everyone, and `key=030` reads the corresponding registers without authentication.
 
 ---
 
-## Points non élucidés
+## Unresolved points
 
-- **Registres sans signification connue** : 0 (constant à `0x8000`), 2, 14, 23, et les
-  valeurs du registre 11 (« mode opération »). Le registre 3 n'a que 3 bits identifiés
-  sur 16. Le code du module ne traite explicitement que les registres 0, 3, 6–13, 16 et 22.
-- **Registre 21 (température des fumées)** : aucun code du module ne le manipule. Son sens
-  vient de l'observation, pas du firmware.
-- **Créneaux 2 et 3 du programme horaire** : leur décodage vient du code du module, mais
-  n'a jamais été observé sur un programme réel qui les utilise.
-- **Écriture des registres d'usine** : on ignore si elle exige une session authentifiée.
-  Non testé volontairement (paramètres de combustion).
-- **Registres 66–127, 195–219, 221–255 et 288–1023** : lisibles, constamment à zéro.
+- **Registers with no known meaning**: 0 (constant at `0x8000`), 2, 14, 23, and the values of register 11 ("operation mode"). Register 3 has only 3 bits identified out of 16. The module code only explicitly handles registers 0, 3, 6–13, 16 and 22.
+- **Register 21 (flue temperature)**: no module code manipulates it. Its meaning comes from observation, not from the firmware.
+- **Slots 2 and 3 of the weekly schedule**: their decoding comes from the module code, but has never been observed in a real schedule that uses them.
+- **Writing factory registers**: it is unknown whether it requires an authenticated session. Deliberately not tested (combustion parameters).
+- **Registers 66–127, 195–219, 221–255 and 288–1023**: readable, constantly zero.

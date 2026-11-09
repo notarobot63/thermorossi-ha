@@ -284,7 +284,7 @@ Two ready-to-use card configurations are included:
 ## Protocol
 
 - **Transport**: HTTP (local network only, no TLS - WiNET firmware limitation)
-- **Full API notes**: [WINET_API.md](WINET_API.md) (in French), written against firmware 0.73, and a section on the `params` format of firmwares 0.79 and 0.43 (decoding table, toggle command, settings reply)
+- **Full API notes**: [WINET_API.md](WINET_API.md), written against firmware 0.73, and a section on the `params` format of firmwares 0.79 and 0.43 (decoding table, toggle command, settings reply)
 - **Polling interval**: 30 seconds (background), 1 s × 10 + 2 s × 10 after any command (on/off, power, fan, setpoint)
 - **API**: `POST /ajax/get-registers` and `POST /ajax/set-register`
 - **ON/OFF values**: `23040` (0x5A00) and `42240` (0xA500) - bitwise complements (industrial safety pattern)
