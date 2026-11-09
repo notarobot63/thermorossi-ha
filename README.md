@@ -12,7 +12,7 @@
 
 Local polling integration for **Thermorossi** pellet stoves equipped with the **WiNET** WiFi module (Micronova).
 
-> Only tested on a Thermorossi stove (WiNET firmware 0.73). Other brands using a Micronova-based WiNET module may work but are **untested** - feedback welcome. See [Supported firmware](#supported-firmware).
+> Developed on a Thermorossi stove (WiNET firmware 0.73); firmwares 0.79 and 0.43 confirmed working by users. Other brands using a Micronova-based WiNET module may work but are **untested** - feedback welcome. See [Supported firmware](#supported-firmware).
 
 No cloud. No account. Direct HTTP communication on your local network.
 
@@ -99,14 +99,18 @@ in the integration diagnostics. It can also be read with
 |----------------|--------|
 | 0.73 | ✅ Supported (developed and tested on it) |
 | 0.79 | ✅ Supported, with fewer entities: see [Firmware 0.79](#firmware-079). Decoded from the module's own web page and confirmed by a user on a real stove. |
-| 0.43 | ✅ Supported, same entities as 0.79 (confirmed by a user, temperatures fixed in 1.5.2). |
+| 0.43 | ✅ Supported, same entities as 0.79: confirmed by a user. Requires 1.5.2 or later (ambient temperature and setpoint were shown doubled before); this fix is not yet confirmed on a real stove. |
 | 0.17 | Should work: reported with the same `params` format as 0.79, but nobody has confirmed it yet. Please report whether it works. |
 | Other | Unknown. If setup works, all entities should behave as described; if not, please open an issue with the log line described below. |
+
+The firmware number alone does not tell which API format a module speaks: a
+hydro stove on 0.81 was reported with the classic `registers` format of 0.73.
+The integration detects the format by itself at the first read.
 
 ### Firmware 0.79
 
 Firmware 0.79 speaks another dialect of the WiNET API (a short `params` list
-instead of the register map), also reported on 0.17 and 0.43 and on other
+instead of the register map), also used by 0.43 and reported on 0.17 and on other
 brands (e.g. Stufe a Pellet Italia). The integration detects it by itself and creates
 only the entities this firmware provides:
 
@@ -280,7 +284,7 @@ Two ready-to-use card configurations are included:
 ## Protocol
 
 - **Transport**: HTTP (local network only, no TLS - WiNET firmware limitation)
-- **Full API notes**: [WINET_API.md](WINET_API.md) (in French), written against firmware 0.73, and a section on the `params` format of firmware 0.79 (decoding table, toggle command)
+- **Full API notes**: [WINET_API.md](WINET_API.md) (in French), written against firmware 0.73, and a section on the `params` format of firmwares 0.79 and 0.43 (decoding table, toggle command, settings reply)
 - **Polling interval**: 30 seconds (background), 1 s × 10 + 2 s × 10 after any command (on/off, power, fan, setpoint)
 - **API**: `POST /ajax/get-registers` and `POST /ajax/set-register`
 - **ON/OFF values**: `23040` (0x5A00) and `42240` (0xA500) - bitwise complements (industrial safety pattern)

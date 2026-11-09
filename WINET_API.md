@@ -29,7 +29,7 @@ l'interface, sans avoir été exécutées : c'est indiqué à chaque fois.
 - **Interface web** : `http://<ip>/management.html`
 - **Adresse par défaut** : DHCP (IP fixe recommandée sur le routeur)
 - **Firmware testé** : 0.73. Le firmware 0.79 parle un autre dialecte de l'API, voir
-  [Firmware 0.79](#firmware-079-format-params) (pris en charge, non testé par nous)
+  [Firmware 0.79](#firmware-079-format-params) (pris en charge, confirmé par des utilisateurs en 0.79 et 0.43, non testé par nous)
 
 Le module est un **proxy mince** : il lit les registres Modbus du board principal et les expose
 via HTTP. Il ne stocke pas lui-même les valeurs - elles viennent du poêle.
@@ -430,7 +430,10 @@ Pris en charge par l'intégration. Sources :
   et [DarkSario/invicta-lodi8-ha-integration](https://github.com/DarkSario/invicta-lodi8-ha-integration)
   (poêle Invicta).
 
-Rien n'a été vérifié sur un module 0.79 par nous-mêmes.
+Rien n'a été vérifié sur un module 0.79 par nous-mêmes, mais un utilisateur a confirmé le
+fonctionnement sur son poêle (issue #4). Le firmware 0.43 parle le même format, avec une
+différence sur les réglages (voir *Lecture*), d'après les diagnostics d'un utilisateur
+(issue #2).
 
 ### Lecture
 
