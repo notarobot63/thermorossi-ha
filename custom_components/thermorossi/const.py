@@ -120,6 +120,9 @@ DIALECT_PARAMS = "params"
 PARAMS_GET_PAYLOAD = "key=020&category=2"
 # On/off is a TOGGLE: never send it without knowing the stove state
 PARAMS_TOGGLE_PAYLOAD = "key=022"
+# Module settings (tempDiv, setTempDiv, numPower, custom), read once by the
+# official page; firmware 0.43 sends them only here, not with the values
+PARAMS_SETTINGS_PAYLOAD = "key=019"
 
 PARAM_AIR_TEMP = 0     # Ambient temperature: value * tempDiv °C
 PARAM_STATUS = 2       # Stove state (PARAMS_STATUS_CODES)

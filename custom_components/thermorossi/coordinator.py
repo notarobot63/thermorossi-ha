@@ -51,6 +51,7 @@ from .const import (
     PARAMS_ERROR_STATES,
     PARAMS_GET_PAYLOAD,
     PARAMS_REQUIRED,
+    PARAMS_SETTINGS_PAYLOAD,
     PARAMS_STATUS_CODES,
     PARAMS_STATUS_OPTIONS,
     PARAMS_TOGGLE_GUARD,
@@ -97,6 +98,7 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         # simultaneous calls cannot both decide to send it.
         self.toggle_lock = asyncio.Lock()
         self._warned_custom = False
+        self._params_settings: dict[str, Any] | None = None
         # Raw get-registers replies, by request payload, for diagnostics
         self.last_payloads: dict[str, Any] = {}
         # The WiNET module is a tiny single-threaded HTTP server: serialize
@@ -278,12 +280,13 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
     async def _update_params(self, body: Any) -> dict[int, int]:
         """Decode a "params" dialect reply and its scale factors."""
         params = await self._parse(body, DIALECT_PARAMS, PARAMS_REQUIRED)
-        self.temp_div = positive_number(body, "tempDiv", 1)
-        self.set_temp_div = positive_number(body, "setTempDiv", 1)
+        settings = body if "tempDiv" in body else await self._read_params_settings()
+        self.temp_div = positive_number(settings, "tempDiv", 1)
+        self.set_temp_div = positive_number(settings, "setTempDiv", 1)
         self.num_power = max(
-            1, int(positive_number(body, "numPower", PARAMS_DEFAULT_NUM_POWER))
+            1, int(positive_number(settings, "numPower", PARAMS_DEFAULT_NUM_POWER))
         )
-        custom = body.get("custom")
+        custom = settings.get("custom")
         if custom not in (None, PARAMS_DEFAULT_CUSTOM) and not self._warned_custom:
             self._warned_custom = True
             _LOGGER.warning(
@@ -293,6 +296,15 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
                 self.host, custom, PARAMS_DEFAULT_CUSTOM,
             )
         return params
+
+    async def _read_params_settings(self) -> dict[str, Any]:
+        """Read the module settings once, for firmwares that leave them out of the values."""
+        if self._params_settings is None:
+            # A failed read fails the update: unscaled values would be shown
+            # doubled and a setpoint written at the wrong scale.
+            body = await self._read(PARAMS_SETTINGS_PAYLOAD)
+            self._params_settings = body if isinstance(body, dict) else {}
+        return self._params_settings
 
     def _dialect_changed(self) -> NoReturn:
         """The module switched API (firmware update): reload to rebuild the entities."""

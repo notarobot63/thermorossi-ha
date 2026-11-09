@@ -338,6 +338,8 @@ class ParamsStove:
     def __init__(self, **overrides) -> None:
         self.reply = make_params(**overrides)
         self.toggles = 0
+        self.settings: dict = {}
+        self.settings_reads = 0
 
     async def side_effect(self, method, url, data):
         data = str(data)
@@ -345,6 +347,9 @@ class ParamsStove:
             self.toggles += 1
             await asyncio.sleep(0.01)  # let a concurrent call reach its state check
             return AiohttpClientMockResponse(method, url, json={"result": True})
+        if data == "key=019":
+            self.settings_reads += 1
+            return AiohttpClientMockResponse(method, url, json=self.settings)
         if "category=1" in data:
             # Some modules answer category 1 with an empty list
             return AiohttpClientMockResponse(
@@ -456,6 +461,52 @@ async def test_params_half_degree_setpoint(
     )
     set_call = next(c for c in aioclient_mock.mock_calls if str(c[1]) == SET_URL)
     assert set_call[2] == "key=002&memory=1&regId=50&value=39"
+
+
+async def test_params_settings_from_key_019(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """Firmware 0.43 sends the scale factors only in the key=019 settings reply."""
+    stove = ParamsStove(p0=51, p50=48)
+    for field in ("tempDiv", "setTempDiv", "numPower", "custom"):
+        del stove.reply[field]
+    stove.settings = {"key": "019", "tempDiv": 0.5, "setTempDiv": 0.5, "numPower": 4,
+                      "custom": 65535, "name": "NO NAME"}
+    aioclient_mock.post(GET_URL, side_effect=stove.side_effect)
+    aioclient_mock.post(SET_URL, json={"result": True})
+    await _setup(hass, config_entry)
+
+    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "25.5"
+    assert hass.states.get("number.thermorossi_temperature_setpoint").state == "24.0"
+    assert hass.states.get("number.thermorossi_power_level").attributes["max"] == 4
+    await _refresh(hass, config_entry)
+    assert stove.settings_reads == 1
+
+
+async def test_params_settings_read_failure_fails_update(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """Without the scale factors, no value is shown rather than a doubled one."""
+    stove = ParamsStove()
+    del stove.reply["tempDiv"]
+    stove.settings = None  # key=019 answers with a server error
+
+    async def side_effect(method, url, data):
+        if str(data) == "key=019":
+            return AiohttpClientMockResponse(method, url, status=500)
+        return await stove.side_effect(method, url, data)
+
+    aioclient_mock.post(GET_URL, side_effect=side_effect)
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_params_settings_in_reply_skip_key_019(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    stove = await _setup_params(hass, aioclient_mock, config_entry)
+    assert stove.settings_reads == 0
 
 
 async def _switch(hass: HomeAssistant, service: str) -> None:

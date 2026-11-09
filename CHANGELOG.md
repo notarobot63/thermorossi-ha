@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.2]
+
+### Corrections (format `params`, firmware 0.43)
+- Température ambiante et consigne affichées au double de la valeur réelle (24 °C sur le poêle, 48 dans Home Assistant, issue #2). Le firmware 0.43 n'envoie pas les diviseurs (`tempDiv`, `setTempDiv`), ni `numPower` et `custom`, avec les valeurs : l'intégration les lit maintenant une fois dans les réglages du module (`key=019`), comme la page officielle.
+
+### Documentation
+- README : firmware 0.43 pris en charge, 0.79 confirmé sur un vrai poêle.
+
 ## [1.5.1]
 
 ### Corrections (format `params`, firmware 0.79)

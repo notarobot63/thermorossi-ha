@@ -459,6 +459,14 @@ le même contenu). Sur certains modules, `category=1` renvoie une liste vide. À
 (la réponse réelle contient aussi `ssid`, retiré ici). Les numéros n'ont rien à voir avec
 la carte des registres du 0.73.
 
+Les diviseurs `tempDiv`, `setTempDiv`, ainsi que `numPower` et `custom`, viennent aussi
+de `POST /ajax/get-registers` `key=019` (réglages du module, avec le programme hebdomadaire
+`mon` … `sun`), que la page lit à son chargement. Le firmware **0.43** ne les envoie que là :
+sa réponse `key=020&category=2` se limite à `params`, `cat`, `signal`, `bk`, `localWeb`,
+`authLevel`, `model` et `name`. Sans eux, la température et la consigne sortent doublées
+(`tempDiv` et `setTempDiv` valent 0,5 sur ce poêle). Le 0.43 renvoie aussi les ids `10`,
+`11`, `12` (120, 10, 69 sur la capture), non élucidés.
+
 `custom` est le code de personnalisation du modèle : la page change d'affichage et de
 tables pour une centaine de codes. Tout ce qui suit vaut pour la branche par défaut
 (`65535`, celle des captures).

@@ -98,8 +98,9 @@ in the integration diagnostics. It can also be read with
 | WiNET firmware | Status |
 |----------------|--------|
 | 0.73 | ✅ Supported (developed and tested on it) |
-| 0.79 | ✅ Supported, with fewer entities: see [Firmware 0.79](#firmware-079). Decoded from the module's own web page and checked against a user's recording, not tested by the maintainer on a real module: please report anything odd. |
-| 0.17, 0.43 | Should work: these firmwares were reported with the same `params` format as 0.79, but nobody has confirmed it yet. Please report whether it works. |
+| 0.79 | ✅ Supported, with fewer entities: see [Firmware 0.79](#firmware-079). Decoded from the module's own web page and confirmed by a user on a real stove. |
+| 0.43 | ✅ Supported, same entities as 0.79 (confirmed by a user, temperatures fixed in 1.5.2). |
+| 0.17 | Should work: reported with the same `params` format as 0.79, but nobody has confirmed it yet. Please report whether it works. |
 | Other | Unknown. If setup works, all entities should behave as described; if not, please open an issue with the log line described below. |
 
 ### Firmware 0.79
