@@ -489,7 +489,6 @@ async def test_params_settings_read_failure_fails_update(
     """Without the scale factors, no value is shown rather than a doubled one."""
     stove = ParamsStove()
     del stove.reply["tempDiv"]
-    stove.settings = None  # key=019 answers with a server error
 
     async def side_effect(method, url, data):
         if str(data) == "key=019":
@@ -500,6 +499,26 @@ async def test_params_settings_read_failure_fails_update(
     config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(config_entry.entry_id)
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_params_settings_without_divisor_read_again(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
+    """A settings reply without tempDiv is not kept: the next poll reads it again."""
+    stove = ParamsStove(p0=51, p50=48)
+    del stove.reply["tempDiv"]
+    stove.settings = []
+    aioclient_mock.post(GET_URL, side_effect=stove.side_effect)
+    aioclient_mock.post(SET_URL, json={"result": True})
+    await _setup(hass, config_entry)
+    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "51.0"
+
+    stove.settings = {"key": "019", "tempDiv": 0.5, "setTempDiv": 0.5}
+    await _refresh(hass, config_entry)
+    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "25.5"
+    assert hass.states.get("number.thermorossi_temperature_setpoint").state == "24.0"
+    await _refresh(hass, config_entry)
+    assert stove.settings_reads == 2
 
 
 async def test_params_settings_in_reply_skip_key_019(

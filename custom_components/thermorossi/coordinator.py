@@ -299,12 +299,18 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
 
     async def _read_params_settings(self) -> dict[str, Any]:
         """Read the module settings once, for firmwares that leave them out of the values."""
-        if self._params_settings is None:
-            # A failed read fails the update: unscaled values would be shown
-            # doubled and a setpoint written at the wrong scale.
-            body = await self._read(PARAMS_SETTINGS_PAYLOAD)
-            self._params_settings = body if isinstance(body, dict) else {}
-        return self._params_settings
+        if self._params_settings is not None:
+            return self._params_settings
+        # A failed read fails the update: unscaled values would be shown
+        # doubled and a setpoint written at the wrong scale.
+        body = await self._read(PARAMS_SETTINGS_PAYLOAD)
+        if not isinstance(body, dict):
+            body = {}
+        if "tempDiv" in body:
+            self._params_settings = body
+        # Otherwise read again at the next poll: divisor 1 meanwhile, which may
+        # be right on a stove that sends no divisor at all.
+        return body
 
     def _dialect_changed(self) -> NoReturn:
         """The module switched API (firmware update): reload to rebuild the entities."""
