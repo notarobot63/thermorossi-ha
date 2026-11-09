@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.5.3]
+
+### Corrections (format `params`, firmware 0.43)
+- Une réponse des réglages du module (`key=019`) vide ou sans diviseur n'est plus gardée jusqu'au redémarrage : elle est relue à chaque interrogation, et les températures se corrigent dès que le module renvoie ses diviseurs.
+
 ## [1.5.2]
 
 ### Corrections (format `params`, firmware 0.43)
