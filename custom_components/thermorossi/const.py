@@ -139,6 +139,9 @@ PARAMS_REQUIRED = (PARAM_STATUS, PARAM_SET_TEMP, PARAM_POWER)
 PARAMS_SET_TEMP_MIN = 5
 PARAMS_SET_TEMP_MAX = 40
 PARAMS_DEFAULT_NUM_POWER = 5
+# Divisor when the module sends none at all (firmware 0.43 answers key=019
+# with {"result": false}): raw values are in half degrees there
+PARAMS_DEFAULT_TEMP_DIV = 0.5
 # Customization code (model variant) whose tables are decoded here; the page
 # switches tables for about a hundred other codes
 PARAMS_DEFAULT_CUSTOM = 65535

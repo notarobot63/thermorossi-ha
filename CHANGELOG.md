@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [1.5.4]
+
+### Fixed (`params` format, firmware 0.43)
+- Ambient temperature and setpoint were still shown doubled on firmware 0.43 (issue #2): this module sends its divisors nowhere, and answers the settings request (`key=019`) with `{"result": false}`. When no divisor is available, values are now read in half degrees (divisor 0.5), as observed on this module and in another integration for the same format.
+- The settings reply is kept once the module has answered, even with a refusal: it is no longer requested at every poll. Only an unreadable reply is requested again.
 
 ### Documentation
 - `WINET_API.md` and this changelog are now in English, and so are the GitHub release notes.

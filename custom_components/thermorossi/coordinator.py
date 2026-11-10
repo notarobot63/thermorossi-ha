@@ -48,6 +48,7 @@ from .const import (
     PARAMS_ALARM_OPTIONS,
     PARAMS_DEFAULT_CUSTOM,
     PARAMS_DEFAULT_NUM_POWER,
+    PARAMS_DEFAULT_TEMP_DIV,
     PARAMS_ERROR_STATES,
     PARAMS_GET_PAYLOAD,
     PARAMS_REQUIRED,
@@ -281,8 +282,10 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         """Decode a "params" dialect reply and its scale factors."""
         params = await self._parse(body, DIALECT_PARAMS, PARAMS_REQUIRED)
         settings = body if "tempDiv" in body else await self._read_params_settings()
-        self.temp_div = positive_number(settings, "tempDiv", 1)
-        self.set_temp_div = positive_number(settings, "setTempDiv", 1)
+        self.temp_div = positive_number(settings, "tempDiv", PARAMS_DEFAULT_TEMP_DIV)
+        self.set_temp_div = positive_number(
+            settings, "setTempDiv", PARAMS_DEFAULT_TEMP_DIV
+        )
         self.num_power = max(
             1, int(positive_number(settings, "numPower", PARAMS_DEFAULT_NUM_POWER))
         )
@@ -305,11 +308,10 @@ class ThermorossiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         # doubled and a setpoint written at the wrong scale.
         body = await self._read(PARAMS_SETTINGS_PAYLOAD)
         if not isinstance(body, dict):
-            body = {}
-        if "tempDiv" in body:
-            self._params_settings = body
-        # Otherwise read again at the next poll: divisor 1 meanwhile, which may
-        # be right on a stove that sends no divisor at all.
+            # Unreadable: read again at the next poll, default divisors meanwhile
+            return {}
+        # Kept even without divisors: firmware 0.43 always answers {"result": false}
+        self._params_settings = body
         return body
 
     def _dialect_changed(self) -> NoReturn:

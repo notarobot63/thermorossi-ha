@@ -501,23 +501,45 @@ async def test_params_settings_read_failure_fails_update(
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
 
 
-async def test_params_settings_without_divisor_read_again(
+async def test_params_no_divisor_anywhere_firmware_043(
     hass: HomeAssistant, aioclient_mock, config_entry
 ) -> None:
-    """A settings reply without tempDiv is not kept: the next poll reads it again."""
+    """Real firmware 0.43: no divisor in the values, key=019 refused: half degrees."""
+    stove = ParamsStove(p0=44, p50=48)
+    for field in ("tempDiv", "setTempDiv", "numPower", "custom"):
+        del stove.reply[field]
+    stove.settings = {"result": False}
+    aioclient_mock.post(GET_URL, side_effect=stove.side_effect)
+    aioclient_mock.post(SET_URL, json={"result": True})
+    await _setup(hass, config_entry)
+
+    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "22.0"
+    assert hass.states.get("number.thermorossi_temperature_setpoint").state == "24.0"
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": "number.thermorossi_temperature_setpoint", "value": 21},
+        blocking=True,
+    )
+    set_call = next(c for c in aioclient_mock.mock_calls if str(c[1]) == SET_URL)
+    assert set_call[2] == "key=002&memory=1&regId=50&value=42"
+    # The refusal is kept: key=019 is not asked again at every poll
+    await _refresh(hass, config_entry)
+    assert stove.settings_reads == 1
+
+
+async def test_params_unreadable_settings_read_again(
+    hass: HomeAssistant, aioclient_mock, config_entry
+) -> None:
     stove = ParamsStove(p0=51, p50=48)
     del stove.reply["tempDiv"]
     stove.settings = []
     aioclient_mock.post(GET_URL, side_effect=stove.side_effect)
     aioclient_mock.post(SET_URL, json={"result": True})
     await _setup(hass, config_entry)
-    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "51.0"
 
-    stove.settings = {"key": "019", "tempDiv": 0.5, "setTempDiv": 0.5}
+    stove.settings = {"key": "019", "tempDiv": 0.25, "setTempDiv": 1}
     await _refresh(hass, config_entry)
-    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "25.5"
-    assert hass.states.get("number.thermorossi_temperature_setpoint").state == "24.0"
-    await _refresh(hass, config_entry)
+    assert hass.states.get("sensor.thermorossi_ambient_temperature").state == "12.8"
     assert stove.settings_reads == 2
 
 
