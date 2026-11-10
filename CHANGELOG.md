@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.5.5]
+
+### Documentation
+- README: firmware 0.43 confirmed on a real stove with 1.5.4 (issue #2); ambient temperature and setpoint now match the stove.
+
 ## [1.5.4]
 
 ### Fixed (`params` format, firmware 0.43)
